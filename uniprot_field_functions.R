@@ -153,21 +153,21 @@ uniprotFieldSelectorUI <- function(id) {
   )
 }
 
-# Server for field selector
+# Fixed Server for field selector
 uniprotFieldSelectorServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    # Quick selection handlers
+    # Quick selection handlers - FIXED: using updateSelectizeInput instead of updateSelectInput
     observeEvent(input$select_default, {
-      updateSelectInput(session, "selected_fields", selected = default_selected_fields)
+      updateSelectizeInput(session, "selected_fields", selected = default_selected_fields)
     })
     
     observeEvent(input$select_all, {
-      updateSelectInput(session, "selected_fields", selected = names(uniprot_fields))
+      updateSelectizeInput(session, "selected_fields", selected = names(uniprot_fields))
     })
     
     observeEvent(input$clear_all, {
-      updateSelectInput(session, "selected_fields", selected = character(0))
+      updateSelectizeInput(session, "selected_fields", selected = character(0))
     })
     
     # Show field count

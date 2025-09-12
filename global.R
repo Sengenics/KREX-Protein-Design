@@ -11,6 +11,7 @@ library(jsonlite)
 
 source('uniprot functions.R')
 source('uniprot_field_functions.R')
+source('get_uniprot_fields.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

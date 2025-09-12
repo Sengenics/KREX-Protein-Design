@@ -30,6 +30,9 @@ ui <- fluidPage(
                  h4("Proteins table"),
                  DTOutput("proteinTable")
         ),
+        tabPanel('Uniprot',
+                 uniprotFieldsManagerUI("fields_manager")
+                 ),
         tabPanel("Search",
                  uiOutput('uniprot_select_ui'),
                  uniprotFieldSelectorUI("field_selector"),

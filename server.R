@@ -140,6 +140,8 @@ server <- function(input, output, session) {
       })
     })
   
-  
+    uniprot_fields <- uniprotFieldsManagerServer("fields_manager")
   
 }
+
+
