@@ -351,6 +351,50 @@ fetch_uniprot_info <- function(uniprot_id) {
   }
   
 
+# Function to search UniProt by gene symbol
+search_uniprot_by_gene <- function(gene_symbol, organism = "human", limit = 10) {
+  tryCatch({
+    # Clean the input
+    gene_symbol <- trimws(gene_symbol)
+    
+    # Construct search query
+    # Format: gene:GENE_NAME AND organism_name:ORGANISM
+    if (tolower(organism) == "human") {
+      organism_query <- "organism_name:\"Homo sapiens\""
+    } else {
+      organism_query <- paste0("organism_name:\"", organism, "\"")
+    }
+    
+    query <- paste0("gene:", gene_symbol, " AND ", organism_query)
+    
+    # UniProt search API endpoint
+    url <- "https://rest.uniprot.org/uniprotkb/search"
+    
+    # Make the API request
+    response <- GET(url, query = list(
+      query = query,
+      format = "json",
+      size = limit
+    ))
+    
+    if (status_code(response) != 200) {
+      return(list(error = paste("Search failed for gene:", gene_symbol)))
+    }
+    
+    # Parse JSON response
+    data <- fromJSON(content(response, "text"))
+    
+    if (length(data$results) == 0) {
+      return(list(error = paste("No proteins found for gene:", gene_symbol)))
+    }
+    
+    # Return the results
+    return(data$results)
+    
+  }, error = function(e) {
+    return(list(error = paste("Error searching for gene:", gene_symbol, "-", e$message)))
+  })
+}
 
 
 # Simplified and more reliable UniProt search function with better debugging

@@ -53,10 +53,13 @@ ui <- fluidPage(
                  h4("Proteins table"),
                  DTOutput("proteinTable")
         ),
+        tabPanel('Add Uniprot ID',
+                 actionButton("add_uniprot", "Add Uniprot"),
+                 uiOutput('add_uniprot_ui')),
         # tabPanel('Uniprot',
         #          uniprotFieldsManagerUI("fields_manager")
         #          ),
-        tabPanel("Search", 
+        tabPanel("Search Uniprot", 
                  radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'Missing',inline = T),
                  uiOutput('uniprot_select_ui'),
                  #uniprotFieldSelectorUI("field_selector"),

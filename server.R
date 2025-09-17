@@ -216,6 +216,100 @@ server <- function(input, output, session) {
  
     })
     
+    observeEvent(input$add_uniprot,{
+ 
+        
+      original_df = table_data()  
+      
+      uniprot_col = input$uniprot_column
+      
+      (uniprot_ids = original_df %>%
+          filter(!is.na(!!sym(uniprot_col))) %>% 
+          pull(!!sym(uniprot_col)) %>% 
+          unique())
+      
+      progress <- shiny::Progress$new()
+      on.exit(progress$close())  # Ensure progress bar closes even if error occurs
+      
+      progress$set(message = "Initializing protein analysis...", value = 0)
+      total_steps <- length(uniprot_ids)
+      
+      id_list = list()
+      for (i in seq_along(uniprot_ids)) {
+        tryCatch({
+          (uniprot_id <- uniprot_ids[i])
+          # Initialize progress bar
+          
+          print(uniprot_id)
+          print(paste(grep(uniprot_id,uniprot_ids),'of',length(uniprot_ids)))
+          
+          # Update progress bar
+          progress$set(
+            message = paste("Processing protein", i, "of", total_steps),
+            detail = paste("Current protein:", uniprot_id),
+            value = (i - 1) / total_steps
+          )
+          
+          data <- search_uniprot_by_gene(uniprot_id)
+          
+          uniprot_primary = safe_extract(data$primaryAccession[[1]])
+          uniprot_secondary = safe_collapse(data$secondaryAccessions[[1]])
+          
+          (df = data.frame(search_id = uniprot_id,
+                          uniprot_primaryAccession = uniprot_primary,
+                          uniprot_secondaryAccession = uniprot_secondary))
+          
+          id_list[[uniprot_id]] = df
+        
+        }, error = function(e) {
+          # Show error in progress detail instead of console
+          progress$set(detail = paste("Error processing", uniprot_id, "- continuing..."))
+          Sys.sleep(0.5)  # Brief pause to show error message
+        })
+      }
+      
+      full_df = rbindlist(id_list)
+      colnames(full_df)[1] = uniprot_col
+      
+      df = original_df %>% 
+        left_join(full_df)
+      
+      df
+      
+      values$add_uniprot = df
+      
+      
+    })
+    
+    output$add_uniprot_ui = renderUI({
+      if(!is.null(values$add_uniprot)){
+        df = values$add_uniprot
+        
+        output$add_uniprot_table = renderDataTable({
+          df
+        })
+        
+        output$download_add_uniprot_xlsx <- downloadHandler(
+          filename = function() {
+            paste0("add_uniprot_data_", Sys.Date(), ".xlsx")
+          },
+          content = function(file) {
+            data <- df
+            if (!is.null(data) && nrow(data) > 0) {
+              write.xlsx(data, file, rowNames = FALSE)
+            } else {
+              write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+            }
+          }
+        )
+        
+        lst = list(
+          downloadButton("download_add_uniprot_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+          dataTableOutput('add_uniprot_table')
+        )
+        do.call(tagList,lst)
+      }
+    })
     
     observeEvent(input$search, {       
       #req(input$uniprot_select)       
