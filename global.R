@@ -8,10 +8,12 @@ library(dplyr)
 library(stringr) 
 library(httr)
 library(jsonlite)
+library(openxlsx)
 
 source('uniprot functions.R')
 source('uniprot_field_functions.R')
 source('get_uniprot_fields.R')
+source('AlphaFold_functions.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

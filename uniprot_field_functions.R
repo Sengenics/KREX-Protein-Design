@@ -3,7 +3,10 @@ library(shiny)
 library(jsonlite)
 
 # Complete list of UniProt fields available via API
-uniprot_fields <- list(
+# Fixed UniProt Field Selector - separates display names from field codes
+
+# Human-readable field descriptions (for display only)
+uniprot_fields_display <- list(
   # Basic Information
   "accession" = "Accession ID (UniProt)",
   "id" = "Entry ID",
@@ -94,7 +97,12 @@ uniprot_fields <- list(
   "temperature_dependence" = "Temperature Dependence"
 )
 
-# Your specific fields for protein design (pre-selected)
+
+# base_fields = c(
+#   "accession",              # Accession ID (e.g., UniProt)
+#   "gene_names" = "Gene Symbol",
+# )
+# Default fields for protein design (field codes only)
 default_selected_fields <- c(
   "protein_name",           # Protein (Name/Symbol)
   "accession",              # Accession ID (e.g., UniProt)
@@ -113,14 +121,13 @@ default_selected_fields <- c(
   "xref_embl"               # For nucleotide sequence references
 )
 
-# UI for field selector
+# Fixed UI for field selector - displays human names, returns field codes
 uniprotFieldSelectorUI <- function(id) {
   ns <- NS(id)
   
   tagList(
     h4("Select UniProt Fields to Retrieve"),
     
-    # Quick selection buttons
     div(
       style = "margin-bottom: 15px;",
       actionButton(ns("select_default"), "Select Protein Design Fields", 
@@ -131,21 +138,20 @@ uniprotFieldSelectorUI <- function(id) {
                    class = "btn-outline-secondary btn-sm")
     ),
     
-    # Field selector
+    # KEY FIX: Use names() as choices, values as names
     selectizeInput(
       ns("selected_fields"),
       "Available UniProt Fields:",
-      choices = uniprot_fields,
+      choices = setNames(names(uniprot_fields_display), unlist(uniprot_fields_display)),
       selected = default_selected_fields,
       multiple = TRUE,
       options = list(
         placeholder = "Type to search fields...",
-        plugins = list("remove_button", "drag_drop"),
+        plugins = list("remove_button"),
         maxItems = NULL
       )
     ),
     
-    # Show selected count
     div(
       style = "color: #666; font-size: 0.9em; margin-top: 5px;",
       textOutput(ns("field_count"))
@@ -153,17 +159,17 @@ uniprotFieldSelectorUI <- function(id) {
   )
 }
 
-# Fixed Server for field selector
+# Fixed server for field selector - returns actual field codes
 uniprotFieldSelectorServer <- function(id) {
   moduleServer(id, function(input, output, session) {
     
-    # Quick selection handlers - FIXED: using updateSelectizeInput instead of updateSelectInput
+    # Quick selection handlers
     observeEvent(input$select_default, {
       updateSelectizeInput(session, "selected_fields", selected = default_selected_fields)
     })
     
     observeEvent(input$select_all, {
-      updateSelectizeInput(session, "selected_fields", selected = names(uniprot_fields))
+      updateSelectizeInput(session, "selected_fields", selected = names(uniprot_fields_display))
     })
     
     observeEvent(input$clear_all, {
@@ -176,13 +182,179 @@ uniprotFieldSelectorServer <- function(id) {
       paste("Selected:", count, "fields")
     })
     
-    # Return selected fields
+    # Return selected field codes (not display names)
+    return(reactive({ 
+      selected_codes <- input$selected_fields
+      cat("Selected field codes:", paste(selected_codes, collapse = ", "), "\n")  # Debug
+      selected_codes
+    }))
+  })
+}
+
+# Test function to verify the fix
+test_field_selector <- function() {
+  # Test the choices setup
+  choices <- setNames(names(uniprot_fields_display), unlist(uniprot_fields_display))
+  
+  cat("Example choices (first 3):\n")
+  print(head(choices, 3))
+  
+  cat("\nField codes (values):", names(choices)[1:3], "\n")
+  cat("Display names (names):", as.character(choices)[1:3], "\n")
+  
+  return(choices)
+}
+
+# Run test
+# test_field_selector()
+# uniprotFieldSelectorServer <- function(id) {
+#   moduleServer(id, function(input, output, session) {
+#     
+#     # DEBUG: Print when server starts
+#     cat("=== SERVER STARTED for module:", id, "===\n")
+#     
+#     # DEBUG: Monitor all inputs
+#     observe({
+#       cat("Current selected_fields length:", length(input$selected_fields), "\n")
+#       cat("Current selected_fields:", paste(input$selected_fields, collapse = ", "), "\n")
+#     })
+#     
+#     # Quick selection handlers with extensive debugging
+#     observeEvent(input$select_default, {
+#       cat(">>> DEFAULT BUTTON CLICKED <<<\n")
+#       cat("About to update with:", length(default_selected_fields), "fields\n")
+#       
+#       tryCatch({
+#         updateSelectizeInput(session, "selected_fields", selected = default_selected_fields)
+#         cat("Update completed successfully\n")
+#       }, error = function(e) {
+#         cat("ERROR in update:", e$message, "\n")
+#       })
+#     })
+#     
+#     observeEvent(input$select_all, {
+#       cat(">>> SELECT ALL BUTTON CLICKED <<<\n")
+#       all_fields <- names(uniprot_fields)
+#       cat("About to update with:", length(all_fields), "fields\n")
+#       
+#       tryCatch({
+#         updateSelectizeInput(session, "selected_fields", selected = all_fields)
+#         cat("Update completed successfully\n")
+#       }, error = function(e) {
+#         cat("ERROR in update:", e$message, "\n")
+#       })
+#     })
+#     
+#     observeEvent(input$clear_all, {
+#       cat(">>> CLEAR ALL BUTTON CLICKED <<<\n")
+#       
+#       tryCatch({
+#         updateSelectizeInput(session, "selected_fields", selected = character(0))
+#         cat("Clear completed successfully\n")
+#       }, error = function(e) {
+#         cat("ERROR in clear:", e$message, "\n")
+#       })
+#     })
+#     
+#     # Show field count
+#     output$field_count <- renderText({
+#       count <- length(input$selected_fields)
+#       paste("Selected:", count, "fields")
+#     })
+#     
+#     # Return selected fields
+#     return(reactive({ input$selected_fields }))
+#   })
+# }
+
+uniprotFieldSelectorServer <- function(id) {
+  moduleServer(id, function(input, output, session) {
+    
+    observeEvent(input$select_default, {
+      updateCheckboxGroupInput(session, "selected_fields", selected = default_selected_fields)
+    })
+    
+    observeEvent(input$select_all, {
+      all_choices <- c("accession", "protein_name", "gene_names", "organism_name", 
+                       "length", "sequence", "cc_subcellular_location", 
+                       "ft_signal", "ft_transmem", "ft_domain")
+      updateCheckboxGroupInput(session, "selected_fields", selected = all_choices)
+    })
+    
     return(reactive({ input$selected_fields }))
   })
 }
 
+# Function to update your server.R
+update_server_search_section <- function() {
+  # Replace your search_section reactive with this:
+  search_section <- reactive({
+    req(input$uniprot_select)
+    
+    uniprot_ids <- input$uniprot_select
+    selected_fields <- if(!is.null(input$field_selector)) {
+      input$field_selector
+    } else {
+      default_selected_fields
+    }
+    
+    # Use the new simplified function
+    result_df <- get_uniprot_info_simple(uniprot_ids, selected_fields)
+    return(result_df)
+  })
+}
+
+  
+fetch_uniprot_info <- function(uniprot_id) {
+    base_url <- "https://rest.uniprot.org/uniprotkb/search"
+    
+    # Choose the fields you need
+    fields <- paste(c("accession", "id", "protein_name", "organism_name",
+                      "length", "comment(FUNCTION)"), collapse = ",")
+    
+    url <- paste0(base_url, "?query=accession:", uniprot_id,
+                  "&fields=", fields, "&format=json")
+    
+    resp <- GET(url)
+    if (status_code(resp) != 200) {
+      return(data.frame(
+        uniprot_id = uniprot_id,
+        error = paste("Request failed with status", status_code(resp)),
+        stringsAsFactors = FALSE
+      ))
+    }
+    
+    txt <- content(resp, "text", encoding = "UTF-8")
+    js <- fromJSON(txt)
+    
+    if (length(js$results) == 0) {
+      return(data.frame(
+        uniprot_id = uniprot_id,
+        error = paste("UniProt ID not found:", uniprot_id),
+        stringsAsFactors = FALSE
+      ))
+    }
+    
+    # Flatten selected fields
+    res <- js$results[[1]]
+    data.frame(
+      uniprot_id   = res$primaryAccession,
+      entry_id     = res$uniProtkbId,
+      protein_name = paste(res$proteinDescription$recommendedName$fullName$value, collapse = "; "),
+      organism     = res$organism$scientificName#,
+      # length       = res$sequence$length,
+      # function     = if (!is.null(res$comments) && nrow(res$comments) > 0) {
+      #   paste(res$comments$value, collapse = " ")
+      # } else NA_character_,
+      # stringsAsFactors = FALSE
+    )
+  }
+  
+
+
+
 # Simplified and more reliable UniProt search function with better debugging
-get_uniprot_info_enhanced <- function(uniprot_id, selected_fields = default_selected_fields) {
+get_uniprot_info_data <- function(uniprot_id) {
   tryCatch({
     # Clean the input
     uniprot_id <- trimws(uniprot_id)
@@ -206,33 +378,277 @@ get_uniprot_info_enhanced <- function(uniprot_id, selected_fields = default_sele
     
     # Parse JSON response
     data <- jsonlite::fromJSON(paste(json_text, collapse = ""))
-    
-    # Debug: print selected fields
-    cat("Processing fields for", uniprot_id, ":\n")
-    cat("Selected fields:", paste(selected_fields, collapse = ", "), "\n")
-    
-    # Initialize result data frame with uniprot_id
-    result_df <- data.frame(uniprot_id = uniprot_id, stringsAsFactors = FALSE)
-    
-    # Extract data based on selected fields - with explicit debugging
-    for (field in selected_fields) {
-      cat("Processing field:", field, "\n")
-      field_value <- extract_uniprot_field_debug(data, field)
-      cat("Result for", field, ":", field_value, "\n")
-      result_df[[field]] <- field_value
-    }
-    
-    return(result_df)
-    
-  }, error = function(e) {
-    cat("Error occurred:", e$message, "\n")
-    return(data.frame(
-      uniprot_id = uniprot_id,
-      error = paste("Error retrieving data:", e$message),
-      stringsAsFactors = FALSE
-    ))
   })
 }
+  
+  # safe_collapse <- function(x, sep = "; ") {
+  #   if (is.null(x) || length(x) == 0) {
+  #     return("None")
+  #   }
+  #   paste(x, collapse = sep)
+  # }
+  # 
+  # 
+  # safe_collapse_synonyms <- function(synonyms_list, sep = "; ") {
+  #   tryCatch({
+  #     if (is.null(synonyms_list) || length(synonyms_list) == 0) {
+  #       return("None")
+  #     }
+  #     
+  #     # Extract the first element (should be a data frame)
+  #     synonym_df <- synonyms_list[[1]]
+  #     
+  #     if (is.null(synonym_df) || !("value" %in% names(synonym_df))) {
+  #       return("None")
+  #     }
+  #     
+  #     # Extract the value column and collapse
+  #     values <- synonym_df$value
+  #     if (length(values) == 0) {
+  #       return("None")
+  #     }
+  #     
+  #     paste(values, collapse = sep)
+  #     
+  #   }, error = function(e) {
+  #     return("Error parsing synonyms")
+  #   })
+  # }
+  # 
+  uniprot_data_parse = function(data){
+    df = data.frame(
+      entryType = safe_extract(data$entryType),
+      primaryAccession = safe_extract(data$primaryAccession),
+      secondaryAccessions = safe_collapse(data$secondaryAccessions, "; "),
+      uniProtkbId = safe_extract(data$uniProtkbId),
+      organism_scientificName = safe_extract(data$organism$scientificName),
+      organism_commonName = safe_extract(data$organism$commonName),
+      organism_taxonId = safe_extract(data$organism$taxonId),
+      protein_name = safe_extract(data$proteinDescription$recommendedName$fullName$value),
+      cdAntigenNames = safe_extract(data$proteinDescription$cdAntigenNames),
+      genes_geneName = safe_extract(data$genes$geneName$value),
+      genes_synonyms = safe_collapse_synonyms(data$genes$synonyms, '; '),
+      protein_sequence = safe_extract(data$sequence$value),
+      protein_length = safe_extract(data$sequence$length),
+      protein_molWeight = safe_extract(data$sequence$molWeight),
+      EMBL = safe_collapse(data$uniProtKBCrossReferences$id[data$uniProtKBCrossReferences$database == "EMBL"], "; "),
+      PDB = safe_collapse(data$uniProtKBCrossReferences$id[data$uniProtKBCrossReferences$database == "PDB"], "; "),
+      AlphaFoldDB = safe_collapse(data$uniProtKBCrossReferences$id[data$uniProtKBCrossReferences$database == "AlphaFoldDB"], "; "),
+
+      stringsAsFactors = F
+    )
+    df
+  }
+
+# Robust UniProt Data Extraction Functions
+# These functions safely handle NULL values from UniProt API responses
+
+# Safe extraction function - returns default value if field is NULL or empty
+safe_extract <- function(value, default = "Not available") {
+  if (is.null(value) || length(value) == 0 || all(is.na(value))) {
+    return(default)
+  }
+  return(value)
+}
+
+# Safe collapse function for lists/vectors
+safe_collapse <- function(values, sep = "; ", default = "Not available") {
+  if (is.null(values) || length(values) == 0 || all(is.na(values))) {
+    return(default)
+  }
+  # Remove NAs and empty strings
+  clean_values <- values[!is.na(values) & values != ""]
+  if (length(clean_values) == 0) {
+    return(default)
+  }
+  return(paste(clean_values, collapse = sep))
+}
+
+# Safe collapse for gene synonyms (handles nested structure)
+safe_collapse_synonyms <- function(synonyms_list, sep = "; ", default = "Not available") {
+  if (is.null(synonyms_list) || length(synonyms_list) == 0) {
+    return(default)
+  }
+  
+  # Extract values from nested structure
+  values <- tryCatch({
+    if (is.list(synonyms_list)) {
+      unlist(lapply(synonyms_list, function(x) x$value))
+    } else {
+      synonyms_list
+    }
+  }, error = function(e) NULL)
+  
+  return(safe_collapse(values, sep, default))
+}
+
+# Safe extraction for nested protein name
+safe_extract_protein_name <- function(protein_desc, default = "Not available") {
+  tryCatch({
+    # Try recommended name first
+    if (!is.null(protein_desc$recommendedName$fullName$value)) {
+      return(protein_desc$recommendedName$fullName$value)
+    }
+    # Try submitted names
+    if (!is.null(protein_desc$submissionNames) && length(protein_desc$submissionNames) > 0) {
+      if (!is.null(protein_desc$submissionNames[[1]]$fullName$value)) {
+        return(protein_desc$submissionNames[[1]]$fullName$value)
+      }
+    }
+    # Try alternative names
+    if (!is.null(protein_desc$alternativeNames) && length(protein_desc$alternativeNames) > 0) {
+      if (!is.null(protein_desc$alternativeNames[[1]]$fullName$value)) {
+        return(protein_desc$alternativeNames[[1]]$fullName$value)
+      }
+    }
+    return(default)
+  }, error = function(e) default)
+}
+
+# Safe extraction for gene name (handles nested structure)
+safe_extract_gene_name <- function(genes_list, default = "Not available") {
+  tryCatch({
+    if (is.null(genes_list) || length(genes_list) == 0) {
+      return(default)
+    }
+    
+    # Get first gene entry
+    first_gene <- genes_list[[1]]
+    if (!is.null(first_gene$geneName$value)) {
+      return(first_gene$geneName$value)
+    }
+    
+    # Try ordered locus names if gene name not available
+    if (!is.null(first_gene$orderedLocusNames) && length(first_gene$orderedLocusNames) > 0) {
+      if (!is.null(first_gene$orderedLocusNames[[1]]$value)) {
+        return(first_gene$orderedLocusNames[[1]]$value)
+      }
+    }
+    
+    return(default)
+  }, error = function(e) default)
+}
+
+# Safe extraction for cross-references by database
+safe_extract_xrefs <- function(cross_refs, database_name, sep = "; ", default = "Not available") {
+  tryCatch({
+    if (is.null(cross_refs) || length(cross_refs) == 0) {
+      return(default)
+    }
+    
+    # Filter by database
+    matching_refs <- cross_refs[cross_refs$database == database_name, ]
+    
+    if (nrow(matching_refs) == 0) {
+      return(default)
+    }
+    
+    return(safe_collapse(matching_refs$id, sep, default))
+    
+  }, error = function(e) default)
+}
+
+# Enhanced get_uniprot_info function with robust error handling
+# uniprot_data_parse <- function(data) {
+# 
+#     
+#     # Create robust data frame with safe extractions
+#     df <- data.frame(
+#       uniprot_id = uniprot_id,
+#       entryType = safe_extract(data$entryType),
+#       primaryAccession = safe_extract(data$primaryAccession),
+#       secondaryAccessions = safe_collapse(data$secondaryAccessions),
+#       uniProtkbId = safe_extract(data$uniProtkbId),
+#       organism_scientificName = safe_extract(data$organism$scientificName),
+#       organism_commonName = safe_extract(data$organism$commonName),
+#       organism_taxonId = safe_extract(data$organism$taxonId, NA_integer_),
+#       protein_name = safe_extract_protein_name(data$proteinDescription$),
+#       cdAntigenNames = safe_collapse(data$proteinDescription$cdAntigenNames),
+#       genes_geneName = safe_extract(data$genes$geneName$value),
+#       genes_synonyms = safe_collapse_synonyms(data$genes$synonyms),
+#       protein_sequence = safe_extract(data$sequence$value),
+#       protein_length = safe_extract(data$sequence$length, NA_integer_),
+#       protein_molWeight = safe_extract(data$sequence$molWeight, NA_real_),
+#       EMBL = safe_extract_xrefs(data$uniProtKBCrossReferences, "EMBL"),
+#       PDB = safe_extract_xrefs(data$uniProtKBCrossReferences, "PDB"),
+#       AlphaFoldDB = safe_extract_xrefs(data$uniProtKBCrossReferences, "AlphaFoldDB"),
+#       stringsAsFactors = FALSE
+#     )
+#     
+#     return(df)
+#     
+# 
+# }
+
+# Batch processing function
+get_uniprot_batch_robust <- function(uniprot_ids) {
+  # Remove empty/NA values
+  uniprot_ids <- uniprot_ids[!is.na(uniprot_ids) & uniprot_ids != ""]
+  
+  if (length(uniprot_ids) == 0) {
+    return(data.frame())
+  }
+  
+  # Process each ID
+  results_list <- lapply(uniprot_ids, get_uniprot_info_robust)
+  
+  # Combine all data frames
+  combined_df <- do.call(rbind, results_list)
+  
+  return(combined_df)
+}
+
+# Example usage:
+# Single protein
+# result <- get_uniprot_info_robust("P04637")
+# print(result)
+
+# Multiple proteins
+# batch_result <- get_uniprot_batch_robust(c("P04637", "Q9Y6K9", "P53_HUMAN"))
+# print(batch_result)
+  
+  truncate_long_text <- function(df, max_chars = 100, exclude_cols = c()) {
+    for (col in colnames(df)) {
+      if (!col %in% exclude_cols && is.character(df[[col]])) {
+        df[[col]] <- sapply(df[[col]], function(x) {
+          if (!is.na(x) && nchar(x) > max_chars) {
+            paste0(substr(x, 1, max_chars), "...")
+          } else {
+            x
+          }
+        })
+      }
+    }
+    return(df)
+  }
+    
+# uniprot_old = function(){
+#     # Debug: print selected fields
+#     cat("Processing fields for", uniprot_id, ":\n")
+#     cat("Selected fields:", paste(selected_fields, collapse = ", "), "\n")
+#     
+#     # Initialize result data frame with uniprot_id
+#     result_df <- data.frame(uniprot_id = uniprot_id, stringsAsFactors = FALSE)
+#     
+#     # Extract data based on selected fields - with explicit debugging
+#     for (field in selected_fields) {
+#       cat("Processing field:", field, "\n")
+#       field_value <- extract_uniprot_field_debug(data, field)
+#       cat("Result for", field, ":", field_value, "\n")
+#       result_df[[field]] <- field_value
+#     }
+#     
+#     return(result_df)
+#     
+#   }, error = function(e) {
+#     cat("Error occurred:", e$message, "\n")
+#     return(data.frame(
+#       uniprot_id = uniprot_id,
+#       error = paste("Error retrieving data:", e$message),
+#       stringsAsFactors = FALSE
+#     ))
+#   })
+# }
 
 # Debug version of extraction function
 extract_uniprot_field_debug <- function(data, field) {
@@ -626,3 +1042,170 @@ determine_secreted_status <- function(subcellular_location) {
 #     })
 #   })
 # }
+
+
+# Main function to get UniProt data using field-specific API
+get_uniprot_info_simple <- function(uniprot_ids, selected_fields = default_selected_fields) {
+  # Handle single ID or multiple IDs
+  if (length(uniprot_ids) == 1) {
+    uniprot_ids <- c(uniprot_ids)
+  }
+  
+  # Clean inputs
+  uniprot_ids <- trimws(uniprot_ids)
+  uniprot_ids <- uniprot_ids[uniprot_ids != ""]
+  
+  if (length(uniprot_ids) == 0) {
+    return(data.frame())
+  }
+  
+  tryCatch({
+    # Convert our field names to UniProt API field names
+    api_fields <- uniprot_api_fields[selected_fields]
+    api_fields <- api_fields[!is.na(api_fields)]
+    
+    # Create the fields parameter for the API
+    fields_param <- paste(api_fields, collapse = ",")
+    
+    # Create query string for multiple IDs
+    ids_param <- paste(uniprot_ids, collapse = " OR ")
+    
+    # UniProt search API endpoint (TSV format is easier to parse)
+    url <- "https://rest.uniprot.org/uniprotkb/search"
+    
+    # Make the API request
+    response <- GET(url, query = list(
+      query = ids_param,
+      fields = fields_param,
+      format = "tsv"
+    ))
+    
+    if (status_code(response) != 200) {
+      warning("UniProt API request failed with status: ", status_code(response))
+      return(data.frame(
+        uniprot_id = uniprot_ids,
+        error = paste("API request failed with status:", status_code(response)),
+        stringsAsFactors = FALSE
+      ))
+    }
+    
+    # Parse TSV response
+    content_text <- content(response, "text", encoding = "UTF-8")
+    
+    if (nchar(trimws(content_text)) == 0) {
+      return(data.frame(
+        uniprot_id = uniprot_ids,
+        error = "No data returned from UniProt",
+        stringsAsFactors = FALSE
+      ))
+    }
+    
+    # Read TSV data
+    result_df <- read.table(text = content_text, 
+                            header = TRUE, 
+                            sep = "\t", 
+                            quote = "", 
+                            stringsAsFactors = FALSE,
+                            fill = TRUE,
+                            comment.char = "")
+    
+    # Rename columns to match our field names
+    colnames(result_df) <- selected_fields[1:ncol(result_df)]
+    
+    # Add any missing requested IDs as rows with errors
+    found_ids <- result_df$accession
+    missing_ids <- setdiff(uniprot_ids, found_ids)
+    
+    if (length(missing_ids) > 0) {
+      missing_df <- data.frame(
+        accession = missing_ids,
+        error = paste("ID not found:", missing_ids),
+        stringsAsFactors = FALSE
+      )
+      
+      # Add empty columns for other fields
+      for (field in selected_fields) {
+        if (!field %in% names(missing_df)) {
+          missing_df[[field]] <- NA
+        }
+      }
+      
+      result_df <- bind_rows(result_df, missing_df)
+    }
+    
+    return(result_df)
+    
+  }, error = function(e) {
+    return(data.frame(
+      uniprot_id = uniprot_ids,
+      error = paste("Error retrieving data:", e$message),
+      stringsAsFactors = FALSE
+    ))
+  })
+}
+
+# Required supporting objects and functions:
+
+# UniProt API field mappings - these are the actual field names UniProt accepts
+uniprot_api_fields <- list(
+  # Basic Information
+  "accession" = "accession",
+  "id" = "id", 
+  "protein_name" = "protein_name",
+  "gene_names" = "gene_names",
+  "organism_name" = "organism_name",
+  "organism_id" = "organism_id",
+  "reviewed" = "reviewed",
+  
+  # Sequence Information
+  "sequence" = "sequence",
+  "length" = "length",
+  "mass" = "mass",
+  
+  # Features
+  "ft_signal" = "ft_signal",
+  "ft_propep" = "ft_propep", 
+  "ft_transit" = "ft_transit",
+  "ft_transmem" = "ft_transmem",
+  "ft_domain" = "ft_domain",
+  "ft_region" = "ft_region",
+  "ft_motif" = "ft_motif",
+  "ft_act_site" = "ft_act_site",
+  "ft_binding" = "ft_binding",
+  "ft_site" = "ft_site",
+  "ft_metal" = "ft_metal",
+  
+  # Comments
+  "cc_function" = "cc_function",
+  "cc_subcellular_location" = "cc_subcellular_location",
+  "cc_subunit" = "cc_subunit",
+  "cc_tissue_specificity" = "cc_tissue_specificity",
+  "cc_disease" = "cc_disease",
+  
+  # Cross-references
+  "xref_embl" = "xref_embl",
+  "xref_pdb" = "xref_pdb",
+  "xref_go" = "xref_go",
+  "xref_interpro" = "xref_interpro",
+  "xref_pfam" = "xref_pfam",
+  
+  # Additional
+  "keywords" = "keyword",
+  "ec" = "ec",
+  "protein_existence" = "protein_existence"
+)
+
+# Default fields for protein design
+default_selected_fields <- c(
+  "accession",
+  "protein_name", 
+  "gene_names",
+  "organism_name",
+  "length",
+  "cc_subcellular_location",
+  "ft_signal",
+  "ft_transmem",
+  "ft_domain",
+  "sequence"
+)
+

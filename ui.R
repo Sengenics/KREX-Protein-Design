@@ -2,11 +2,34 @@
 # User interface
 
 ui <- fluidPage(
+  
+  tags$head(
+    tags$style(HTML("
+    .dataTables_wrapper td {
+      vertical-align: top;
+      padding: 8px !important;
+    }
+    
+    /* Hover effect to show full content */
+    td span[title]:hover {
+      position: relative;
+      background-color: #fff3cd;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .dataTables_wrapper td {
+        max-width: 150px !important;
+        font-size: 12px;
+      }
+    }
+  "))
+  ),
   titlePanel("Protein Design — Upload & Preview"),
   
   sidebarLayout(
     sidebarPanel(
-      actionButton("debug", "Browser"),
+      actionButton("debug", "Debug"),
       hr(),
       
       h5("Data source"),
@@ -30,20 +53,25 @@ ui <- fluidPage(
                  h4("Proteins table"),
                  DTOutput("proteinTable")
         ),
-        tabPanel('Uniprot',
-                 uniprotFieldsManagerUI("fields_manager")
-                 ),
-        tabPanel("Search",
+        # tabPanel('Uniprot',
+        #          uniprotFieldsManagerUI("fields_manager")
+        #          ),
+        tabPanel("Search", 
+                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'Missing',inline = T),
                  uiOutput('uniprot_select_ui'),
-                 uniprotFieldSelectorUI("field_selector"),
-                 hr(),
-                 textInput("uniprot_id", "UniProt ID:", value = "P04637"),
+                 #uniprotFieldSelectorUI("field_selector"),
+                 #hr(),
+                 #textInput("uniprot_id", "UniProt ID:", value = "P04637"),
+                
+                 selectInput('database_search','Databases',c('Uniprot','AlphaFold','AlphaFold PDB'),'Uniprot',multiple = T),
+                 radioButtons('uniprot_rerun','Rerun',c(F,T),F,inline = T),
                  actionButton("search", "Search"),
                  hr(),
-                 DT::dataTableOutput("results"),
-                 dataTableOutput('uniprot_results'))
+                 uiOutput('result_output_ui')
+                
       )
     
     )
   )
+)
 )
