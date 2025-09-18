@@ -365,7 +365,14 @@ search_uniprot_by_gene <- function(gene_symbol, organism = "human", limit = 10) 
       organism_query <- paste0("organism_name:\"", organism, "\"")
     }
     
-    query <- paste0("gene:", gene_symbol, " AND ", organism_query)
+    #query <- paste0("gene:", gene_symbol, " AND ", organism_query)
+    query <- paste0("gene_exact:", gene_symbol, " AND taxonomy_id:9606 AND reviewed:true")
+    #query <- paste0("gene:", gene_symbol, " AND taxonomy_id:9606 AND reviewed:true")
+    #query <- paste0("gene_primary:", gene_symbol, " AND taxonomy_id:9606 AND reviewed:true")
+    #query <- paste0("(gene_exact:", gene_symbol, ") AND taxonomy_id:9606 AND reviewed:true")
+    #query <- paste0("gene_primary:", gene_symbol, " AND taxonomy_id:9606 AND reviewed:true")
+    #query <- paste0(gene_symbol, "[Gene Name] AND taxonomy:9606 AND reviewed:yes")
+    #query <- paste0("mnemonic:", gene_symbol, "_HUMAN AND reviewed:yes")
     
     # UniProt search API endpoint
     url <- "https://rest.uniprot.org/uniprotkb/search"
@@ -383,6 +390,76 @@ search_uniprot_by_gene <- function(gene_symbol, organism = "human", limit = 10) 
     
     # Parse JSON response
     data <- fromJSON(content(response, "text"))
+    
+    # if (length(data$results) == 0) {
+    #   return(list(error = paste("No proteins found for gene:", gene_symbol)))
+    # }
+    # if (length(data$results) > 0) {
+    #   correct_result <- NULL
+    #   
+    #   for (i in seq_along(data$results$genes)) {
+    #     genes <- data$results$genes[[i]]
+    #     if (length(genes) > 0 && !is.null(genes$geneName$value)) {
+    #       primary_gene <- genes$geneName$value
+    #       if (toupper(primary_gene) == toupper(gene_symbol)) {
+    #         correct_result <- data$results[i]
+    #         break
+    #       }
+    #     }
+    #   }
+    #   
+    #   if (!is.null(correct_result)) {
+    #     data$results <- correct_result
+    #   } else {
+    #     data$results <- data$results[1]  # fallback to first if no perfect match
+    #   }
+    # }
+    
+    if (length(data$results) > 0) {
+      correct_index <- NULL
+      
+      for (i in seq_along(data$results)) {
+        genes <- data$results$genes[[i]]
+        if (length(genes) > 0 && !is.null(genes$geneName$value)) {
+          primary_gene <- genes$geneName$value
+          if (toupper(primary_gene) == toupper(gene_symbol)) {
+            correct_index <- i
+            break
+          }
+        }
+      }
+      
+      if (!is.null(correct_index)) {
+        # Keep only the matching entry - need to subset ALL fields
+        data$results <- lapply(data$results, function(field) {
+          if (is.list(field)) field[[correct_index]] else field[correct_index]
+        })
+      }
+    }
+    
+    # if (length(data$results) > 0) {
+    #   # Filter to only entries where the gene_symbol matches the primary gene name
+    #   primary_matches <- data$results[sapply(data$results$genes, function(gene_list) {
+    #     if (length(gene_list) > 0 && !is.null(gene_list[[1]]$geneName$value)) {
+    #       return(toupper(gene_list[[1]]$geneName$value) == toupper(gene_symbol))
+    #     }
+    #     return(FALSE)
+    #   })]
+    #   
+    #   # Use primary matches if found, otherwise fall back to all results
+    #   if (length(primary_matches) > 0) {
+    #     data$results <- primary_matches
+    #   }
+    # }
+    
+    # if (length(data$results) == 0) {
+    #   # Try without reviewed filter as fallback
+    #   query_fallback <- paste0("gene:", gene_symbol, " AND taxonomy_id:9606")
+    #   response <- GET(url, query = list(query = query_fallback, format = "json", size = limit))
+    #   if (status_code(response) == 200) {
+    #     data <- fromJSON(content(response, "text"))
+    #   }
+    # }
     
     if (length(data$results) == 0) {
       return(list(error = paste("No proteins found for gene:", gene_symbol)))
@@ -469,7 +546,7 @@ get_uniprot_info_data <- function(uniprot_id) {
       organism_commonName = safe_extract(data$organism$commonName),
       organism_taxonId = safe_extract(data$organism$taxonId),
       protein_name = safe_extract(data$proteinDescription$recommendedName$fullName$value),
-      cdAntigenNames = safe_extract(data$proteinDescription$cdAntigenNames),
+      #cdAntigenNames = safe_extract(data$proteinDescription$cdAntigenNames),
       genes_geneName = safe_extract(data$genes$geneName$value),
       genes_synonyms = safe_collapse_synonyms(data$genes$synonyms, '; '),
       protein_sequence = safe_extract(data$sequence$value),

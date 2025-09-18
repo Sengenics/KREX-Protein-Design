@@ -9,6 +9,7 @@ library(stringr)
 library(httr)
 library(jsonlite)
 library(openxlsx)
+library(data.table)
 
 source('uniprot functions.R')
 source('uniprot_field_functions.R')
@@ -18,6 +19,8 @@ source('AlphaFold_functions.R')
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"
 
+vector = read_excel("Data/Vectors.xlsx")
+colnames(vector)
 # Helper: safely read an Excel sheet, returning a tibble or NULL on error
 read_excel_safe <- function(path, sheet) {
   tryCatch({

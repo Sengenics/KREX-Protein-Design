@@ -21,30 +21,41 @@ server <- function(input, output, session) {
   # List available sheets for the current file
   sheets <- reactive({
     excel_sheets_safe(current_path())
+    excel_sheets(current_path())
+  })
+  
+  output$sheetPicker <- renderUI({
+    #excel_sheets_safe(current_path())
+    sheets = excel_sheets(current_path())
+    selectInput("sheet", "Sheet", choices = sheets)
   })
   
   # Initialize/update sheet picker whenever file changes
-  observe({
-    sh <- sheets()
-    # Default: "Proteins" (case-insensitive), else 3rd, else 1st
-    default_sheet <- pick_default_sheet(sh)
-    # Build UI (or message if no sheets)
-    if (is.null(sh)) {
-      output$sheetPicker <- renderUI({
-        tags$div(style = "color:#a94442;", "⚠️ Unable to read sheets from the selected file.")
-      })
-    } else {
-      output$sheetPicker <- renderUI({
-        selectInput("sheet", "Sheet", choices = sh, selected = default_sheet)
-      })
-      # If there is no input$sheet yet, set it to default
-      if (is.null(input$sheet) && !is.null(default_sheet)) {
-        updateSelectInput(session, "sheet", selected = default_sheet)
-      }
-    }
-  })
+  # observe({
+  #   sh <- sheets()
+  #   # Default: "Proteins" (case-insensitive), else 3rd, else 1st
+  #   default_sheet <- pick_default_sheet(sh)
+  #   # Build UI (or message if no sheets)
+  #   if (is.null(sh)) {
+  #     output$sheetPicker <- renderUI({
+  #       tags$div(style = "color:#a94442;", "⚠️ Unable to read sheets from the selected file.")
+  #     })
+  #   } else {
+  #     output$sheetPicker <- renderUI({
+  #       selectInput("sheet", "Sheet", choices = sh, selected = default_sheet)
+  #     })
+  #     # If there is no input$sheet yet, set it to default
+  #     if (is.null(input$sheet) && !is.null(default_sheet)) {
+  #       updateSelectInput(session, "sheet", selected = default_sheet)
+  #     }
+  #   }
+  # })
   
   # Read the chosen sheet (reactive)
+  protein_data_o = reactive({
+    read_excel_safe(current_path(), sheet = 1)
+  })
+  
   protein_data <- reactive({
     req(current_path())
     # If user hasn't picked yet, choose default for current file
@@ -53,7 +64,8 @@ server <- function(input, output, session) {
     } else {
       pick_default_sheet(sheets())
     }
-    df <- read_excel_safe(current_path(), sheet_to_use)
+    #df <- read_excel_safe(current_path(), sheet_to_use,)
+    df = read_excel(current_path(),sheet = sheet_to_use,skip = input$row_number)
    # validate(need(!is.null(df), "Could not read the selected sheet from the file."))
     df %>% as.data.frame()
   })
@@ -189,7 +201,7 @@ server <- function(input, output, session) {
   
     selected_fields <- uniprotFieldSelectorServer("field_selector")
 
-    
+    # Uniprot #####
     values = reactiveValues()
     
     upload = reactive({
@@ -216,10 +228,13 @@ server <- function(input, output, session) {
  
     })
     
+    
+    # Add Uniprot ####
+    
     observeEvent(input$add_uniprot,{
  
         
-      original_df = table_data()  
+      original_df = table_data()   
       
       uniprot_col = input$uniprot_column
       
@@ -235,6 +250,12 @@ server <- function(input, output, session) {
       total_steps <- length(uniprot_ids)
       
       id_list = list()
+      
+      test = F
+      if(test == T){
+        uniprot_ids = sample(uniprot_ids,5)
+        i = 1
+      }
       for (i in seq_along(uniprot_ids)) {
         tryCatch({
           (uniprot_id <- uniprot_ids[i])
@@ -251,13 +272,18 @@ server <- function(input, output, session) {
           )
           
           data <- search_uniprot_by_gene(uniprot_id)
+          #data$genes$geneName$value
+          #data$genes[[2]]$geneName$value
+          # uniprot_primary = safe_extract(data$primaryAccession[[1]])
+          # uniprot_secondary = safe_collapse(data$secondaryAccessions[[1]])
+          # gene_primary = safe_extract(data$genes[[1]]$geneName$value)
           
-          uniprot_primary = safe_extract(data$primaryAccession[[1]])
-          uniprot_secondary = safe_collapse(data$secondaryAccessions[[1]])
           
           (df = data.frame(search_id = uniprot_id,
-                          uniprot_primaryAccession = uniprot_primary,
-                          uniprot_secondaryAccession = uniprot_secondary))
+                          uniprot_primaryAccession = safe_extract(data$primaryAccession),
+                          uniprot_secondaryAccession = safe_collapse(data$secondaryAccessions),
+                          geneNames_primary = safe_extract(data$genes$geneName$value)
+                          ))
           
           id_list[[uniprot_id]] = df
         
@@ -268,15 +294,16 @@ server <- function(input, output, session) {
         })
       }
       
-      full_df = rbindlist(id_list)
+      full_df = rbindlist(id_list) %>% 
+        mutate(test = ifelse(search_id == geneNames_primary,T,F))
       colnames(full_df)[1] = uniprot_col
       
       df = original_df %>% 
         left_join(full_df)
       
       df
-      
-      values$add_uniprot = df
+      values$add_uniprot = full_df
+      values$add_uniprot_original = df
       
       
     })
@@ -285,8 +312,31 @@ server <- function(input, output, session) {
       if(!is.null(values$add_uniprot)){
         df = values$add_uniprot
         
+        output$add_uniprot_original_table = renderDataTable({
+          values$add_uniprot_original
+        })
+        
+        output$download_add_uniprot_original_xlsx <- downloadHandler(
+          filename = function() {
+            paste0("add_uniprot_data_", Sys.Date(), ".xlsx")
+          },
+          content = function(file) {
+            data <- values$add_uniprot_original
+            if (!is.null(data) && nrow(data) > 0) {
+              write.xlsx(data, file, rowNames = FALSE)
+            } else {
+              write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+            }
+          }
+        )
+        
         output$add_uniprot_table = renderDataTable({
-          df
+          values$add_uniprot
+        })
+        
+        output$add_uniprot_mismatch_table = renderDataTable({
+          values$add_uniprot %>% 
+            filter(test == FALSE)
         })
         
         output$download_add_uniprot_xlsx <- downloadHandler(
@@ -294,7 +344,7 @@ server <- function(input, output, session) {
             paste0("add_uniprot_data_", Sys.Date(), ".xlsx")
           },
           content = function(file) {
-            data <- df
+            data <- values$add_uniprot
             if (!is.null(data) && nrow(data) > 0) {
               write.xlsx(data, file, rowNames = FALSE)
             } else {
@@ -304,13 +354,26 @@ server <- function(input, output, session) {
         )
         
         lst = list(
-          downloadButton("download_add_uniprot_xlsx", "Excel", class = "btn-sm btn-outline-success"),
-          dataTableOutput('add_uniprot_table')
+         
+          tabsetPanel(
+            tabPanel('Add Uniprot',
+                     tags$h4('Mismatch'),
+                     dataTableOutput('add_uniprot_mismatch_table'),
+                     tags$h4('Full'),
+                     downloadButton("download_add_uniprot_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+                     dataTableOutput('add_uniprot_table')),
+            tabPanel('Add to Original',
+                     downloadButton("download_add_uniprot_original_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+                     dataTableOutput('add_uniprot_original_table')
+                     )
+          )
+         
         )
         do.call(tagList,lst)
       }
     })
     
+    # Search Uniprot ####
     observeEvent(input$search, {       
       #req(input$uniprot_select)       
       #uniprot_ids <- input$uniprot_select
@@ -438,7 +501,7 @@ server <- function(input, output, session) {
       uniprot_list = values$uniprot_list
       alpha_list = values$alpha_list
       
-      library('data.table')
+      #library('data.table')
       feature_df = rbindlist(feature_list,fill = T) %>% 
         filter(uniprot_id %in% uniprot_ids())
       uniprot_df = rbindlist(uniprot_list,fill = T) %>% 
@@ -477,6 +540,18 @@ server <- function(input, output, session) {
           }
         )
         
+        output$download_uniprot_tsv <- downloadHandler(
+          filename = function() {
+            paste0("uniprot_data_", Sys.Date(), ".tsv")
+          },
+          content = function(file) {
+            data <- uniprot_df
+            if (!is.null(data) && nrow(data) > 0) {
+              data.table::fwrite(data, file,sep = '\t')
+            }
+          }
+        )
+        
         output$download_features_xlsx <- downloadHandler(
           filename = function() {
             paste0("uniprot_features_", Sys.Date(), ".xlsx")
@@ -506,20 +581,111 @@ server <- function(input, output, session) {
         )
         
       #   #alpha_fold_structure = download_alphafold_structure(uniprot_id)
-      # list(data_list = data_list,
-      #      uniprot_df = uniprot_df,
-      #      alpha_df = alpha_df,
-      #      feature_df = feature_df)
+      list(#data_list = data_list,
+           uniprot_df = uniprot_df,
+           alpha_df = alpha_df,
+           feature_df = feature_df)
     })
+    
+    ## Sequences 
+    
+    sequences = reactive({
+      uniprot_df = consolidate_data()$uniprot_df
+      feature_df = consolidate_data()$feature_df
+      
+      colnames(uniprot_df)
+      sequence_df = uniprot_df %>% 
+        dplyr::select(one_of(c('uniprot_id','primaryAccession','protein_sequence')))
+      
+      colnames(feature_df)
+      signal_df = feature_df %>% 
+        filter(type == "Signal") %>% 
+        dplyr::select(one_of('uniprot_id','type','start','end','length'))
+      
+      sequence_signal_df = sequence_df %>% 
+        left_join(signal_df)
+      
+      vector
+      colnames(vector)
+      unique(vector$Vector)
+      (pR030A = vector %>% 
+        filter(Vector == 'pPRO30A') %>% 
+        pull(tag) 
+      )
+      pR030A = gsub("[^\x01-\x7F]", "", pR030A)
+      
+      (pPRO30A_SP = vector %>% 
+          filter(Vector == 'pPRO30A-SP​') %>% 
+        pull(tag))
+      pPRO30A_SP = gsub("[^\x01-\x7F]", "", pPRO30A_SP)
+      
+      (pPRO8 = vector %>% 
+          filter(Vector == 'pPRO8') %>% 
+          pull(tag))
+      pPRO8 = gsub("[^\x01-\x7F]", "", pPRO8)
+      
+      # 
+      # sequence_signal_add = sequence_signal_df %>% 
+      #   mutate(signal_protein = ifelse(protein_sequence[1] == 'M',protein_sequence[2:],protein_sequence)) %>% 
+      #   mutate(pR030A = paste0(pR030A,protein_sequence)) %>% 
+      #   mutate(pPRO30A_SP = paste0(pPRO30A_SP,protein_sequence)) %>% 
+      #   mutate(pPRO8 = paste0(protein_sequence,pPRO8))
+      
+      sequence_signal_add <- sequence_signal_df %>% 
+        mutate(protein_sequence = gsub("[^\x01-\x7F]", "", trimws(protein_sequence))) %>% 
+        mutate(signal_protein = ifelse(substr(protein_sequence, 1, 1) == 'M',
+                                       substr(protein_sequence, 2, nchar(protein_sequence)), 
+                                       protein_sequence)) %>% 
+        mutate(pR030A = paste0(trimws(pR030A), protein_sequence)) %>%  # Use signal_protein here
+        mutate(pPRO30A_SP = paste0(trimws(pPRO30A_SP), signal_protein)) %>% 
+        mutate(pPRO8 = paste0(protein_sequence, trimws(pPRO8)))
+      
+      #View(sequence_signal_add)
+      #truncate_long_text
+      output$sequences_table <- DT::renderDataTable({
+        DT::datatable(truncate_long_text(sequence_signal_add,150), options = list(scrollX = TRUE))
+      })
+      
+      output$download_sequences_xlsx <- downloadHandler(
+        filename = function() {
+          paste0("sequences_", Sys.Date(), ".xlsx")
+        },
+        content = function(file) {
+          data <- sequence_signal_add
+          if (!is.null(data) && nrow(data) > 0) {
+            write.xlsx(data, file, rowNames = FALSE)
+          } else {
+            write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+          }
+        }
+      )
+      
+      output$download_sequences_tsv <- downloadHandler(
+        filename = function() {
+          paste0("sequences_", Sys.Date(), ".tsv")
+        },
+        content = function(file) {
+          data <- sequence_signal_add
+          if (!is.null(data) && nrow(data) > 0) {
+            data.table::fwrite(data, file, sep = '\t')
+          }
+        }
+      )
+      
+      
+      sequence_signal_add
+  })
     
     output$result_output_ui = renderUI({
       consolidate_data()
+      sequences()
       
       lst = list(
         tabsetPanel(
           tabPanel("Description",
             tags$h3('Uniprot'),
             downloadButton("download_uniprot_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+            downloadButton("download_uniprot_tsv", "tsv", class = "btn-sm btn-outline-success"),
             DT::dataTableOutput('uniprot_results'),
             tags$h3("Alpha Fold"),
             downloadButton("download_alphafold_xlsx", "Excel", class = "btn-sm btn-outline-success"),
@@ -528,6 +694,11 @@ server <- function(input, output, session) {
           tabPanel('Features',
                    downloadButton("download_features_xlsx", "Excel", class = "btn-sm btn-outline-success"),
                    DT::dataTableOutput('uniprot_features')      
+                   ),
+          tabPanel("Sequences",
+                   downloadButton("download_sequences_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+                   downloadButton("download_sequences_tsv", "tsv", class = "btn-sm btn-outline-success"),
+                   DT::dataTableOutput('sequences_table')  
                    )
         )
       )

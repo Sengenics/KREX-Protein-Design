@@ -39,6 +39,7 @@ ui <- fluidPage(
         accept = c(".xlsx", ".xls")
       ),
       uiOutput("sheetPicker"),
+      numericInput('row_number','Start Row',0),
       uiOutput('uniprot_col_ui'),
       hr(),
       
