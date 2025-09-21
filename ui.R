@@ -73,7 +73,11 @@ ui <- fluidPage(
                  hr(),
                  uiOutput('result_output_ui')
                 
-      )
+      ),
+      tabPanel('Uniprot Features',
+               uiOutput('uniprot_features_input_ui'),
+               uiOutput('uniprot_features_output_ui')),
+
     
     )
   )

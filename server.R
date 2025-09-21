@@ -587,7 +587,7 @@ server <- function(input, output, session) {
            feature_df = feature_df)
     })
     
-    ## Sequences 
+    ## Sequences #####
     
     sequences = reactive({
       uniprot_df = consolidate_data()$uniprot_df
@@ -622,7 +622,7 @@ server <- function(input, output, session) {
       (pPRO8 = vector %>% 
           filter(Vector == 'pPRO8') %>% 
           pull(tag))
-      pPRO8 = gsub("[^\x01-\x7F]", "", pPRO8)
+      pPRO8 = gsub("[^\x01-\x7F]", "", pPRO8) 
       
       # 
       # sequence_signal_add = sequence_signal_df %>% 
@@ -676,6 +676,127 @@ server <- function(input, output, session) {
       sequence_signal_add
   })
     
+    
+    ### Features ####
+    
+  output$uniprot_features_input_ui = renderUI({
+    uniprot_ids = unique(consolidate_data()$feature_df$uniprot_id)
+    selectInput('individual_uniprots','Single Protein',uniprot_ids)
+  })
+    
+  # features = reactive({
+  #   feature_df = consolidate_data()$feature_df
+  #   
+  #   uniprot_ids = unique(feature_df$uniprot_id)
+  #   uniprot_id = uniprot_ids[1]
+  #   uniprot_id = input$individual_uniprots
+  #   
+  #   plots <- visualize_protein(feature_df, uniprot_id)
+  #    # plots$feature_map  # Interactive feature map
+  #    # plots$domain_arch  # Domain architecture
+  #    # plots$summary_table  # Summary table
+  #   
+  #   # # For all proteins
+  #    feature_distribution <- plot_feature_distribution(feature_df)
+  #   # 
+  #   # # Just the feature map
+  #   feature_plot <- plot_protein_features(feature_df, uniprot_id)
+  #   feature_plot
+  #   
+  #   output$features_feature_map = renderPlotly({
+  #     plots$feature_map
+  #   })
+  #   output$features_domain_arch = renderPlotly({
+  #     plots$domain_arch
+  #   })
+  #   
+  #   output$features_summary_table = renderDataTable({
+  #     plots$summary_table
+  #   })
+  # 
+  # })
+  
+  observe({
+    req(input$individual_uniprots)  # Wait for input to be available
+    
+    feature_df = consolidate_data()$feature_df
+    uniprot_id = input$individual_uniprots
+    ind_uniprot_id = uniprot_id
+    ind_feature_df = feature_df %>% 
+      dplyr::filter(uniprot_id == ind_uniprot_id)
+    
+    # Create the plots
+    plots <- visualize_protein(ind_feature_df, uniprot_id)
+    
+    # Render the outputs
+    output$features_feature_map = renderPlotly({
+      plots$feature_map
+    })
+    
+    output$features_domain_arch = renderPlotly({
+      plots$domain_arch
+    })
+    
+    output$features_summary_table = renderDataTable({
+      plots$summary_table
+    })
+    
+    output$features_df_individual_table = renderDataTable({
+      
+      feature_df %>% dplyr::filter(uniprot_id == ind_uniprot_id)
+    })
+  })
+  
+  # output$uniprot_features_output_ui = renderUI({
+  #   features()
+  #   lst = list(
+  #     plotlyOutput('features_feature_map'),
+  #     plotlyOutput('features_domain_arch'),
+  #     dataTableOutput('features_summary_table')
+  #   )
+  # })
+  
+  output$uniprot_features_output_ui = renderUI({
+    req(input$individual_uniprots)  # Only show when protein is selected
+    
+    tagList(
+      h4(paste("Features for", input$individual_uniprots)),
+      tabsetPanel(
+        
+        tabPanel('Feature Map',
+          h5("Interactive Feature Map"),
+          plotlyOutput('features_feature_map', height = "400px")
+        ),
+        tabPanel('Domain Architecture',
+            
+          h5("Domain Architecture"),
+          plotlyOutput('features_domain_arch', height = "300px")
+        ),
+        tabPanel("Summary",
+          br(),
+          h5("Feature Summary"),
+          dataTableOutput('features_summary_table')
+        ), 
+        tabPanel('Features Full',
+                 dataTableOutput('features_df_individual_table')
+                 )
+      )
+    )
+  })
+    
+    ## Alpha Fold #####
+    
+    AlphaFold = reactive({
+      sequence_df = sequences()
+      
+      sequence = sequence_df$protein_sequence[1]
+      n_sequence = toupper(sequence_df$pR030A[1])
+      
+      a_seq = predict_structure_from_sequence(n_sequence)
+      
+      a_hit = submit_to_colabfold(sequence)
+    })
+    
     output$result_output_ui = renderUI({
       consolidate_data()
       sequences()
@@ -699,7 +820,13 @@ server <- function(input, output, session) {
                    downloadButton("download_sequences_xlsx", "Excel", class = "btn-sm btn-outline-success"),
                    downloadButton("download_sequences_tsv", "tsv", class = "btn-sm btn-outline-success"),
                    DT::dataTableOutput('sequences_table')  
-                   )
+                   ),
+          tabPanel("3D Structure",
+                   h5("AlphaFold Structure"),
+                   verbatimTextOutput('structure_info'),
+                   br(),
+                   r3dmolOutput('protein_structure', height = "500px")
+          )
         )
       )
       
@@ -709,6 +836,98 @@ server <- function(input, output, session) {
     })
   
     uniprot_fields <- uniprotFieldsManagerServer("fields_manager")
+    
+    
+    ## PDB VIS #####
+    # Add this to your server.R
+    observe({
+      req(input$individual_uniprots)
+      
+      feature_df = consolidate_data()$feature_df
+      uniprot_id = input$individual_uniprots
+      
+      # Create the plots (your existing code)
+      plots <- visualize_protein(feature_df, uniprot_id)
+      
+      # Render feature outputs (your existing code)
+      output$features_feature_map = renderPlotly({
+        plots$feature_map
+      })
+      
+      output$features_domain_arch = renderPlotly({
+        plots$domain_arch
+      })
+      
+      output$features_summary_table = renderDataTable({
+        plots$summary_table
+      })
+      
+      # ADD THIS: Render 3D structure
+      # output$protein_structure <- renderR3dmol({  
+      #   #visualize_pdb_structure(uniprot_id, "alphafold_structures")
+      #   render_structure_robust(input$individual_uniprots, "alphafold_structures", method = "auto")
+      #   
+      # })
+      
+      output$protein_structure <- renderR3dmol({ 
+        req(input$individual_uniprots)
+        
+        uniprot_id <- input$individual_uniprots
+        pdb_file <- file.path("alphafold_structures", paste0("AF-", uniprot_id, "-F1-model_v4.pdb"))
+        
+        if (file.exists(pdb_file)) {
+          pdb_content <- readLines(pdb_file, warn = FALSE)
+          pdb_string <- paste(pdb_content, collapse = "\n")
+          
+          r3dmol(elementId = paste0("structure_", uniprot_id)) %>%
+            m_add_model(data = pdb_string, format = "pdb") %>%
+            m_set_style(style = list(cartoon = list(color = "spectrum"))) %>%
+            m_zoom_to() %>%
+            m_spin()
+        }
+      })
+      
+      # ADD THIS: Structure info
+      output$structure_info <- renderText({
+        info <- get_pdb_info(uniprot_id, "alphafold_structures")
+        if (info$status == "found") {
+          paste("File:", info$file_name, "| Residues:", info$residue_count, "| Atoms:", info$atom_count)
+        } else {
+          info$message
+        }
+      })
+    })
+    
+    # Update your UI output
+    output$uniprot_features_output_ui = renderUI({
+      req(input$individual_uniprots)
+      
+      tagList(
+        h4(paste("Analysis for", input$individual_uniprots)),
+        
+        # Your existing feature tabs
+        tabsetPanel(
+          tabPanel("Feature Map",
+                   plotlyOutput('features_feature_map', height = "400px")
+          ),
+          tabPanel("Domain Architecture", 
+                   plotlyOutput('features_domain_arch', height = "300px")
+          ),
+          tabPanel("Feature Summary",
+                   dataTableOutput('features_summary_table')
+          ),
+          # ADD THIS: New 3D structure tab
+          tabPanel("3D Structure",
+                   h5("AlphaFold Structure"),
+                   verbatimTextOutput('structure_info'),
+                   br(),
+                   r3dmolOutput('protein_structure', height = "500px")
+                   
+                   
+          )
+        )
+      )
+    })
   
 }
 
