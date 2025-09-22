@@ -8,163 +8,516 @@ library(RColorBrewer)
 library(viridis)
 
 # Function to create interactive feature plot from your features_df
-plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_length = NULL) {
-  
-  # Filter for specific protein if provided
-  if (!is.null(uniprot_id)) {
-    features_df <- features_df[features_df$uniprot_id == uniprot_id, ]
-  }
-  
-  # Get unique protein ID for title
-  protein_id <- unique(features_df$uniprot_id)[1]
-  
-  # Estimate sequence length if not provided
-  if (is.null(sequence_length)) {
-    sequence_length <- max(features_df$end, na.rm = TRUE) + 50
-  }
-  
-  if (nrow(features_df) == 0) {
-    p <- plot_ly() %>%
-      add_annotations(
-        text = paste("No features found for", protein_id),
-        x = 0.5, y = 0.5,
-        xref = "paper", yref = "paper",
-        showarrow = FALSE,
-        font = list(size = 16)
-      ) %>%
-      layout(title = paste("Protein Features:", protein_id))
-    return(p)
-  }
-  
-  # Define colors for different feature types
-  feature_types <- unique(features_df$type)
-  colors <- rainbow(length(feature_types), alpha = 0.7)
-  names(colors) <- feature_types
-  
-  # Add colors and y-positions
-  features_df <- features_df %>%
-    mutate(
-      color = colors[type],
-      y_pos = assign_y_positions_simple(start, end, type),
-      hover_text = paste0(
-        "Type: ", type, "<br>",
-        "Position: ", start, "-", end, "<br>",
-        "Length: ", length, " aa<br>",
-        "UniProt ID: ", uniprot_id
-      )
-    )
-  
-  # Create the plot
-  p <- plot_ly() %>%
-    layout(
-      title = paste("Protein Features:", protein_id, "(Length ~", sequence_length, "aa)"),
-      xaxis = list(
-        title = "Amino Acid Position",
-        range = c(0, sequence_length),
-        showgrid = TRUE
-      ),
-      yaxis = list(
-        title = "Features",
-        showticklabels = TRUE,
-        ticktext = unique(features_df$type),
-        tickvals = 1:length(unique(features_df$type)),
-        showgrid = FALSE
-      ),
-      showlegend = TRUE,
-      hovermode = "closest",
-      height = 400 + length(feature_types) * 30
-    )
-  
-  # Add sequence backbone
-  p <- p %>%
-    add_trace(
-      x = c(1, sequence_length),
-      y = c(0, 0),
-      type = "scatter",
-      mode = "lines",
-      line = list(color = "black", width = 3),
-      name = "Sequence",
-      hoverinfo = "skip",
-      showlegend = FALSE
-    )
-  
-  # Add features grouped by type
-  for (ft in feature_types) {
-    ft_data <- features_df[features_df$type == ft, ]
-    
-    # Add rectangles for this feature type
-    for (i in 1:nrow(ft_data)) {
-      feature <- ft_data[i, ]
-      
-      p <- p %>%
-        add_trace(
-          x = c(feature$start, feature$end, feature$end, feature$start, feature$start),
-          y = c(feature$y_pos - 0.2, feature$y_pos - 0.2, feature$y_pos + 0.2, feature$y_pos + 0.2, feature$y_pos - 0.2),
-          type = "scatter",
-          mode = "lines",
-          fill = "toself",
-          fillcolor = feature$color,
-          line = list(color = feature$color, width = 2),
-          name = ft,
-          legendgroup = ft,
-          showlegend = ifelse(i == 1, TRUE, FALSE),
-          hoverinfo = "text",
-          text = feature$hover_text
-        )
-    }
-  }
-  
-  return(p)
-}
+# plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_length = NULL) {
+#   
+#   # Filter for specific protein if provided
+#   if (!is.null(uniprot_id)) {
+#     features_df <- features_df[features_df$uniprot_id == uniprot_id, ]
+#   }
+#   
+#   # Get unique protein ID for title
+#   protein_id <- unique(features_df$uniprot_id)[1]
+#   
+#   # Estimate sequence length if not provided
+#   if (is.null(sequence_length)) {
+#     sequence_length <- max(features_df$end, na.rm = TRUE) + 50
+#   }
+#   
+#   if (nrow(features_df) == 0) {
+#     p <- plot_ly() %>%
+#       add_annotations(
+#         text = paste("No features found for", protein_id),
+#         x = 0.5, y = 0.5,
+#         xref = "paper", yref = "paper",
+#         showarrow = FALSE,
+#         font = list(size = 16)
+#       ) %>%
+#       layout(title = paste("Protein Features:", protein_id))
+#     return(p)
+#   }
+#   
+#   # Define colors for different feature types
+#   feature_types <- unique(features_df$type)
+#   colors <- rainbow(length(feature_types), alpha = 0.7)
+#   names(colors) <- feature_types
+#   
+#   # Add colors and y-positions
+#   features_df <- features_df %>%
+#     mutate(
+#       color = colors[type],
+#       y_pos = assign_y_positions_simple(start, end, type),
+#       # hover_text = paste0(
+#       #   "Type: ", type, "<br>",
+#       #   "Position: ", start, "-", end, "<br>",
+#       #   "Length: ", length, " aa<br>",
+#       #   "UniProt ID: ", uniprot_id
+#       # ),
+#       hover_text = paste0(
+#         "Type: ", type, "<br>",
+#         "Length: ", length
+#       )
+#     )
+#   
+#   # Create the plot
+#   p <- plot_ly() %>%
+#     layout(
+#       title = paste("Protein Features:", protein_id, "(Length ~", sequence_length, "aa)"),
+#       xaxis = list(
+#         title = "Amino Acid Position",
+#         range = c(0, sequence_length),
+#         showgrid = TRUE
+#       ),
+#       yaxis = list(
+#         title = "Features",
+#         showticklabels = TRUE,
+#         ticktext = unique(features_df$type),
+#         tickvals = 1:length(unique(features_df$type)),
+#         showgrid = FALSE
+#       ),
+#       showlegend = TRUE,
+#       hovermode = "closest",
+#       height = 400 + length(feature_types) * 30
+#     )
+#   
+#   # Add sequence backbone
+#   p <- p %>%
+#     add_trace(
+#       x = c(1, sequence_length),
+#       y = c(0, 0),
+#       type = "scatter",
+#       mode = "lines",
+#       line = list(color = "black", width = 3),
+#       name = "Sequence",
+#       hoverinfo = "skip",
+#       showlegend = FALSE
+#     )
+#   
+#   # Add features grouped by type
+#   for (ft in feature_types) {
+#     ft_data <- features_df[features_df$type == ft, ]
+#     
+#     # Add rectangles for this feature type
+#     for (i in 1:nrow(ft_data)) {
+#       feature <- ft_data[i, ]
+#       
+#       p <- p %>%
+#         add_trace(
+#           x = c(feature$start, feature$end, feature$end, feature$start, feature$start),
+#           y = c(feature$y_pos - 0.2, feature$y_pos - 0.2, feature$y_pos + 0.2, feature$y_pos + 0.2, feature$y_pos - 0.2),
+#           type = "scatter",
+#           mode = "lines",
+#           fill = "toself",
+#           fillcolor = feature$color,
+#           line = list(color = feature$color, width = 2),
+#           name = ft,
+#           legendgroup = ft,
+#           showlegend = ifelse(i == 1, TRUE, FALSE),
+#           hoverinfo = "text",
+#           text = feature$hover_text
+#         )
+#     }
+#   }
+#   
+#   return(p)
+# }
 
-# Helper function to assign y-positions to avoid overlap
-assign_y_positions_simple <- function(starts, ends, types) {
-  n <- length(starts)
-  if (n == 0) return(numeric(0))
-  
-  # Initialize positions
-  positions <- rep(1, n)
-  
-  # Simple approach: for each feature, find a non-overlapping y-level
-  for (i in 1:n) {
-    current_start <- starts[i]
-    current_end <- ends[i]
-    
-    # Find the lowest available y-position
-    y_level <- 1
-    overlap_found <- TRUE
-    
-    while (overlap_found && y_level <= 20) {  # Max 20 levels
-      overlap_found <- FALSE
-      
-      # Check if this y-level conflicts with any previous features
-      if (i > 1) {  # Only check if there are previous features
-        for (j in 1:(i-1)) {
-          if (positions[j] == y_level) {
-            # Check for overlap
-            prev_start <- starts[j]
-            prev_end <- ends[j]
-            
-            # Features overlap if they intersect
-            if (!(current_end < prev_start || current_start > prev_end)) {
-              overlap_found <- TRUE
-              break
-            }
-          }
-        }
-      }
-      
-      if (overlap_found) {
-        y_level <- y_level + 1
-      } else {
-        positions[i] <- y_level
-        overlap_found <- FALSE
-      }
-    }
-  }
-  
-  return(positions)
-}
+# Enhanced protein features plot with categorized tracks
+# Copy this function into your functions file
+
+# Enhanced protein features plot with categorized tracks
+# Copy this function into your functions file
+
+# plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_length = NULL) {
+#   
+#   # Filter for specific protein if provided
+#   if (!is.null(uniprot_id)) {
+#     features_df <- features_df[features_df$uniprot_id == uniprot_id, ]
+#   }
+#   
+#   # Get unique protein ID for title
+#   protein_id <- unique(features_df$uniprot_id)[1]
+#   
+#   # Estimate sequence length if not provided
+#   if (is.null(sequence_length)) {
+#     # Use max end position, but handle case where all ends are NA
+#     max_end <- max(features_df$end, na.rm = TRUE)
+#     sequence_length <- ifelse(is.finite(max_end), max_end + 50, 1000)  # Default to 1000 if no valid ends
+#   }
+#   
+#   if (nrow(features_df) == 0) {
+#     p <- plot_ly() %>%
+#       add_annotations(
+#         text = paste("No features found for", protein_id),
+#         x = 0.5, y = 0.5,
+#         xref = "paper", yref = "paper",
+#         showarrow = FALSE,
+#         font = list(size = 16)
+#       ) %>%
+#       layout(title = paste("Protein Features:", protein_id))
+#     return(p)
+#   }
+#   
+#   # Define feature categories and their track positions
+#   feature_categories <- list(
+#     "Targeting_Secretion" = list(
+#       features = c("Signal", "Transit peptide", "Propeptide", "SIGNAL", "TRANSIT", "PROPEP"),
+#       track_start = 8,
+#       color_base = "#E74C3C"  # Red
+#     ),
+#     
+#     "Membrane_Topology" = list(
+#       features = c("Transmembrane", "Intramembrane", "Topological domain", "TRANSMEM", "INTRAMEM", "TOPO_DOM"),
+#       track_start = 7,
+#       color_base = "#3498DB"  # Blue
+#     ),
+#     
+#     "Functional_Sites" = list(
+#       features = c("Domain", "Active site", "Binding site", "Site", "Metal", "DNA binding", 
+#                    "DOMAIN", "ACT_SITE", "BINDING", "SITE", "METAL", "DNA_BIND", "CA_BIND", "NP_BIND"),
+#       track_start = 6,
+#       color_base = "#27AE60"  # Green
+#     ),
+#     
+#     "Structural_Elements" = list(
+#       features = c("Repeat", "Motif", "Coiled coil", "Zinc finger", "Region",
+#                    "REPEAT", "MOTIF", "COILED", "ZN_FING", "REGION"),
+#       track_start = 5,
+#       color_base = "#F39C12"  # Orange
+#     ),
+#     
+#     "Post_Translational_Modifications" = list(
+#       features = c("Modified residue", "Glycosylation", "Disulfide bond", "Lipidation", "Cross-link",
+#                    "MOD_RES", "CARBOHYD", "DISULFID", "LIPID", "CROSSLNK"),
+#       track_start = 4,
+#       color_base = "#9B59B6"  # Purple
+#     ),
+#     
+#     "Sequence_Variants" = list(
+#       features = c("Natural variant", "Mutagenesis", "Alternative sequence", "Sequence conflict",
+#                    "VARIANT", "MUTAGEN", "VAR_SEQ", "CONFLICT"),
+#       track_start = 3,
+#       color_base = "#E67E22"  # Dark Orange
+#     ),
+#     
+#     "Processing_Maturation" = list(
+#       features = c("Chain", "Peptide", "Initiator methionine", "Non-terminal residue",
+#                    "CHAIN", "PEPTIDE", "INIT_MET", "NON_TER"),
+#       track_start = 2,
+#       color_base = "#1ABC9C"  # Teal
+#     ),
+#     
+#     "Secondary_Structure" = list(
+#       features = c("Helix", "Beta strand", "Turn", "HELIX", "STRAND", "TURN"),
+#       track_start = 1,
+#       color_base = "#95A5A6"  # Gray
+#     ),
+#     
+#     # Space for additional/unknown types
+#     "Other_Features" = list(
+#       features = c(),  # Will capture anything not in above categories
+#       track_start = 9,
+#       color_base = "#34495E"  # Dark Gray
+#     )
+#   )
+#   
+#   # Function to assign category and track position
+#   assign_feature_category <- function(feature_type) {
+#     for (category_name in names(feature_categories)) {
+#       category <- feature_categories[[category_name]]
+#       if (feature_type %in% category$features) {
+#         return(list(
+#           category = category_name,
+#           track_start = category$track_start,
+#           color_base = category$color_base
+#         ))
+#       }
+#     }
+#     # If not found in any category, assign to "Other_Features"
+#     return(list(
+#       category = "Other_Features",
+#       track_start = feature_categories$Other_Features$track_start,
+#       color_base = feature_categories$Other_Features$color_base
+#     ))
+#   }
+#   
+#   # Function to assign y-positions within tracks to avoid overlap
+#   assign_y_positions_within_track <- function(features_subset) {
+#     if (nrow(features_subset) == 0) return(numeric(0))
+#     
+#     # Remove rows with NA start or end positions
+#     features_subset <- features_subset[!is.na(features_subset$start) & !is.na(features_subset$end), ]
+#     
+#     if (nrow(features_subset) == 0) return(numeric(0))
+#     
+#     # Sort by start position
+#     features_subset <- features_subset[order(features_subset$start), ]
+#     
+#     # Initialize positions
+#     features_subset$y_offset <- 0
+#     
+#     # Assign non-overlapping positions within the track
+#     if (nrow(features_subset) > 1) {
+#       for (i in 2:nrow(features_subset)) {
+#         max_offset <- 0
+#         for (j in 1:(i-1)) {
+#           # Check if features overlap (with NA checks)
+#           start_i <- features_subset$start[i]
+#           end_i <- features_subset$end[i]
+#           start_j <- features_subset$start[j]
+#           end_j <- features_subset$end[j]
+#           
+#           # Only check overlap if all values are not NA
+#           if (!is.na(start_i) && !is.na(end_i) && !is.na(start_j) && !is.na(end_j)) {
+#             if (end_j >= start_i && start_j <= end_i) {
+#               max_offset <- max(max_offset, features_subset$y_offset[j] + 1, na.rm = TRUE)
+#             }
+#           }
+#         }
+#         features_subset$y_offset[i] <- max_offset
+#       }
+#     }
+#     
+#     return(features_subset$y_offset)
+#   }
+#   
+#   # Add category information and positions to features
+#   features_df$category <- NA
+#   features_df$track_start <- NA
+#   features_df$color_base <- NA
+#   features_df$y_offset <- 0
+#   
+#   for (i in 1:nrow(features_df)) {
+#     cat_info <- assign_feature_category(features_df$type[i])
+#     features_df$category[i] <- cat_info$category
+#     features_df$track_start[i] <- cat_info$track_start
+#     features_df$color_base[i] <- cat_info$color_base
+#   }
+#   
+#   # Assign y-positions within each category to avoid overlaps
+#   for (category_name in unique(features_df$category)) {
+#     category_features <- features_df[features_df$category == category_name, ]
+#     if (nrow(category_features) > 0) {
+#       y_offsets <- assign_y_positions_within_track(category_features)
+#       
+#       # Handle case where function returns empty vector due to all NA values
+#       if (length(y_offsets) > 0) {
+#         features_df[features_df$category == category_name, "y_offset"] <- y_offsets
+#       } else {
+#         # Assign default positions if all positions were NA
+#         features_df[features_df$category == category_name, "y_offset"] <- 0
+#       }
+#     }
+#   }
+#   
+#   # Calculate final y positions
+#   features_df$y_pos <- features_df$track_start + (features_df$y_offset * 0.3)
+#   
+#   # Generate colors with variations for multiple features in same category
+#   features_df$color <- mapply(function(base_color, offset) {
+#     # Vary saturation/lightness based on offset
+#     col_rgb <- col2rgb(base_color)
+#     # Adjust brightness
+#     factor <- 1 - (offset * 0.1)
+#     factor <- max(0.6, min(1, factor))  # Keep within reasonable range
+#     new_rgb <- col_rgb * factor
+#     rgb(new_rgb[1], new_rgb[2], new_rgb[3], maxColorValue = 255, alpha = 180)
+#   }, features_df$color_base, features_df$y_offset)
+#   
+#   # Create hover text
+#   features_df$hover_text <- paste0(
+#     "Type: ", features_df$type, "<br>",
+#     "Category: ", gsub("_", " ", features_df$category), "<br>",
+#     "Position: ", features_df$start, "-", features_df$end, "<br>",
+#     "Length: ", features_df$length, " aa"
+#   )
+#   
+#   # Calculate plot height based on max y position
+#   max_y <- max(features_df$y_pos) + 1
+#   
+#   # Create track labels
+#   track_labels <- list()
+#   track_positions <- list()
+#   for (category_name in names(feature_categories)) {
+#     if (any(features_df$category == category_name)) {
+#       track_labels <- c(track_labels, gsub("_", " ", category_name))
+#       track_positions <- c(track_positions, feature_categories[[category_name]]$track_start)
+#     }
+#   }
+#   
+#   # Create the plot
+#   p <- plot_ly() %>%
+#     layout(
+#       title = list(
+#         text = paste("Protein Features:", protein_id, "<br><sub>Length ~", sequence_length, "aa</sub>"),
+#         font = list(size = 16)
+#       ),
+#       xaxis = list(
+#         title = "Amino Acid Position",
+#         range = c(0, sequence_length),
+#         showgrid = TRUE,
+#         gridcolor = "#E5E5E5"
+#       ),
+#       yaxis = list(
+#         title = "Feature Categories",
+#         range = c(-0.5, max_y + 0.5),
+#         showticklabels = TRUE,
+#         ticktext = unlist(track_labels),
+#         tickvals = unlist(track_positions),
+#         showgrid = TRUE,
+#         gridcolor = "#F0F0F0"
+#       ),
+#       showlegend = TRUE,
+#       hovermode = "closest",
+#       height = 200 + max_y * 60,
+#       legend = list(
+#         orientation = "h",
+#         x = 0,
+#         y = -0.2
+#       )
+#     )
+#   
+#   # Add sequence backbone
+#   p <- p %>%
+#     add_trace(
+#       x = c(1, sequence_length),
+#       y = c(0, 0),
+#       type = "scatter",
+#       mode = "lines",
+#       line = list(color = "black", width = 4),
+#       name = "Protein Sequence",
+#       hovertemplate = paste("Sequence Length:", sequence_length, "aa<extra></extra>"),
+#       showlegend = FALSE
+#     )
+#   
+#   # Add category separator lines
+#   for (category_name in names(feature_categories)) {
+#     if (any(features_df$category == category_name)) {
+#       track_y <- feature_categories[[category_name]]$track_start
+#       p <- p %>%
+#         add_trace(
+#           x = c(0, sequence_length),
+#           y = c(track_y - 0.5, track_y - 0.5),
+#           type = "scatter",
+#           mode = "lines",
+#           line = list(color = "#CCCCCC", width = 1, dash = "dot"),
+#           hoverinfo = "skip",
+#           showlegend = FALSE
+#         )
+#     }
+#   }
+#   
+#   # Add features grouped by category and type
+#   for (category_name in unique(features_df$category)) {
+#     category_data <- features_df[features_df$category == category_name, ]
+#     
+#     for (ft in unique(category_data$type)) {
+#       ft_data <- category_data[category_data$type == ft, ]
+#       
+#       # Add rectangles for this feature type
+#       for (i in 1:nrow(ft_data)) {
+#         feature <- ft_data[i, ]
+#         
+#         p <- p %>%
+#           add_trace(
+#             x = c(feature$start, feature$end, feature$end, feature$start, feature$start),
+#             y = c(feature$y_pos - 0.12, feature$y_pos - 0.12, feature$y_pos + 0.12, 
+#                   feature$y_pos + 0.12, feature$y_pos - 0.12),
+#             type = "scatter",
+#             mode = "lines",
+#             fill = "toself",
+#             fillcolor = feature$color,
+#             line = list(color = feature$color, width = 1),
+#             name = paste0(gsub("_", " ", category_name), ": ", ft),
+#             legendgroup = paste0(category_name, "_", ft),
+#             showlegend = ifelse(i == 1, TRUE, FALSE),
+#             hovertemplate = paste0(feature$hover_text, "<extra></extra>")
+#           )
+#       }
+#     }
+#   }
+#   
+#   return(p)
+# }
+# 
+# # Helper function to create a summary view for protein design
+# create_protein_design_summary <- function(features_df, uniprot_id = NULL) {
+#   
+#   if (!is.null(uniprot_id)) {
+#     features_df <- features_df[features_df$uniprot_id == uniprot_id, ]
+#   }
+#   
+#   # Count features by design-relevant categories
+#   summary <- data.frame(
+#     Category = c(
+#       "Secretion Signals", "Membrane Features", "Functional Sites", 
+#       "Structural Elements", "Modifications", "Sequence Issues"
+#     ),
+#     Count = c(
+#       sum(features_df$type %in% c("Signal", "Transit peptide", "Propeptide", "SIGNAL", "TRANSIT", "PROPEP")),
+#       sum(features_df$type %in% c("Transmembrane", "Intramembrane", "Topological domain", "TRANSMEM", "INTRAMEM", "TOPO_DOM")),
+#       sum(features_df$type %in% c("Domain", "Active site", "Binding site", "Site", "DOMAIN", "ACT_SITE", "BINDING", "SITE")),
+#       sum(features_df$type %in% c("Repeat", "Motif", "Coiled coil", "Zinc finger", "REPEAT", "MOTIF", "COILED", "ZN_FING")),
+#       sum(features_df$type %in% c("Modified residue", "Glycosylation", "Disulfide bond", "MOD_RES", "CARBOHYD", "DISULFID")),
+#       sum(features_df$type %in% c("Natural variant", "Sequence conflict", "VARIANT", "CONFLICT"))
+#     ),
+#     Design_Impact = c(
+#       "HIGH - Affects targeting", "HIGH - Membrane integration", "HIGH - Function", 
+#       "MEDIUM - Stability", "MEDIUM - Processing", "LOW - Natural variation"
+#     ),
+#     stringsAsFactors = FALSE
+#   )
+#   
+#   return(summary)
+# }
+# 
+# # Helper function to assign y-positions to avoid overlap
+# assign_y_positions_simple <- function(starts, ends, types) {
+#   n <- length(starts)
+#   if (n == 0) return(numeric(0))
+#   
+#   # Initialize positions
+#   positions <- rep(1, n)
+#   
+#   # Simple approach: for each feature, find a non-overlapping y-level
+#   for (i in 1:n) {
+#     current_start <- starts[i]
+#     current_end <- ends[i]
+#     
+#     # Find the lowest available y-position
+#     y_level <- 1
+#     overlap_found <- TRUE
+#     
+#     while (overlap_found && y_level <= 20) {  # Max 20 levels
+#       overlap_found <- FALSE
+#       
+#       # Check if this y-level conflicts with any previous features
+#       if (i > 1) {  # Only check if there are previous features
+#         for (j in 1:(i-1)) {
+#           if (positions[j] == y_level) {
+#             # Check for overlap
+#             prev_start <- starts[j]
+#             prev_end <- ends[j]
+#             
+#             # Features overlap if they intersect
+#             if (!(current_end < prev_start || current_start > prev_end)) {
+#               overlap_found <- TRUE
+#               break
+#             }
+#           }
+#         }
+#       }
+#       
+#       if (overlap_found) {
+#         y_level <- y_level + 1
+#       } else {
+#         positions[i] <- y_level
+#         overlap_found <- FALSE
+#       }
+#     }
+#   }
+#   
+#   return(positions)
+# }
 
 # Create a cleaner domain architecture plot
 plot_domain_architecture <- function(features_df, uniprot_id = NULL) {

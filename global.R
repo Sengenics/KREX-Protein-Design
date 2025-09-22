@@ -18,7 +18,10 @@ source('uniprot_field_functions.R')
 source('get_uniprot_fields.R')
 source('AlphaFold_functions.R')
 source('uniprot_features.R')
+source('unique_features_sub_2.R')
 source('pdb_vis_functions.R')
+source('terminal_impact.R')
+source('pdb_viewer_function.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

@@ -716,8 +716,9 @@ server <- function(input, output, session) {
   # 
   # })
   
-  observe({
-    req(input$individual_uniprots)  # Wait for input to be available
+  observe({ 
+    req(input$individual_uniprots)   #  Wait for input to be available
+    
     
     feature_df = consolidate_data()$feature_df
     uniprot_id = input$individual_uniprots
@@ -725,8 +726,21 @@ server <- function(input, output, session) {
     ind_feature_df = feature_df %>% 
       dplyr::filter(uniprot_id == ind_uniprot_id)
     
+    output$sequence_text = renderText({
+      sequence = sequences() %>% filter(uniprot_id == ind_uniprot_id) %>% 
+        pull(protein_sequence)
+      sequence
+    })
     # Create the plots
     plots <- visualize_protein(ind_feature_df, uniprot_id)
+    
+    # Replace your current plotting call with:
+    # plots = plot_protein_features_with_impact(feature_df, uniprot_id = "P08514",
+    #                                   show_impact = TRUE)
+    # 
+    # # Generate impact report:
+    # impact_report <- generate_impact_report(feature_df, uniprot_id = "P08514")
+    # print(impact_report$summary)
     
     # Render the outputs
     output$features_feature_map = renderPlotly({
@@ -801,6 +815,12 @@ server <- function(input, output, session) {
       consolidate_data()
       sequences()
       
+      
+      
+      output$feature_list_text = renderText({
+        feature_text = paste0(unique(consolidate_data()$feature_df$type),collapse = ', ')
+      })
+      
       lst = list(
         tabsetPanel(
           tabPanel("Description",
@@ -814,6 +834,7 @@ server <- function(input, output, session) {
           ),
           tabPanel('Features',
                    downloadButton("download_features_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+                   textOutput('feature_list_text'),
                    DT::dataTableOutput('uniprot_features')      
                    ),
           tabPanel("Sequences",
@@ -840,24 +861,64 @@ server <- function(input, output, session) {
     
     ## PDB VIS #####
     # Add this to your server.R
-    observe({
-      req(input$individual_uniprots)
+    observe({  
+      req(input$individual_uniprots) 
       
-      feature_df = consolidate_data()$feature_df
-      uniprot_id = input$individual_uniprots
-      
+      feature_df = consolidate_data()$feature_df  
+      uniprot_id_ind = input$individual_uniprots
+      feature_df = consolidate_data()$feature_df %>% 
+        filter(uniprot_id == uniprot_id_ind)
+      print(unique(feature_df$type))
       # Create the plots (your existing code)
-      plots <- visualize_protein(feature_df, uniprot_id)
+      uniprot_id = uniprot_id_ind
+      features_df = feature_df
+      
+      plots <- visualize_protein(feature_df, uniprot_id_ind)
+      
+      output$tagging_report <- renderUI({
+        #req(input$uniprot_select)
+        
+        impact_analysis <- analyze_terminal_tag_impact(feature_df, uniprot_id = uniprot_id_ind)
+        report_text <- create_tagging_report(impact_analysis)
+        report_text
+        # Convert to HTML with line breaks
+        report_html <- gsub("\n", "<br>", report_text)
+        
+        div(
+          style = "font-family: 'Courier New', monospace; 
+             background-color: #f8f9fa; 
+             padding: 15px; 
+             border-radius: 8px;",
+          HTML(report_html)
+        )
+      })
+      
+      # output$tagging_report <- renderText({ 
+      #   #req(input$uniprot_select)  # or whatever triggers the analysis
+      #   
+      #   # Run your analysis
+      #   impact_analysis <- analyze_terminal_tag_impact(feature_df, uniprot_id = uniprot_id_ind)
+      #   
+      #   # Get the formatted report
+      #   report_text <- create_tagging_report(impact_analysis)
+      #   
+      #   report_text
+      # })
       
       # Render feature outputs (your existing code)
       output$features_feature_map = renderPlotly({
         plots$feature_map
       })
       
+      
       output$features_domain_arch = renderPlotly({
         plots$domain_arch
       })
       
+      
+      output$features_full_table = renderDataTable({
+        feature_df
+      })
       output$features_summary_table = renderDataTable({
         plots$summary_table
       })
@@ -904,7 +965,25 @@ server <- function(input, output, session) {
       
       tagList(
         h4(paste("Analysis for", input$individual_uniprots)),
+        #textOutput('sequence_text'),
         
+        # div(
+        #   style = "font-family: 'Courier New', monospace;
+        #    white-space: pre-wrap;
+        #    background-color: #f8f9fa;
+        #    padding: 15px;
+        #    border: 1px solid #dee2e6;
+        #    border-radius: 8px;
+        #    overflow-x: auto;",
+        #   textOutput("tagging_report")
+        # ),
+        #html("tagging_report"),
+        uiOutput("tagging_report"),
+        
+        div(
+          style = "word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word;",
+          textOutput("sequence_text")
+        ),
         # Your existing feature tabs
         tabsetPanel(
           tabPanel("Feature Map",
@@ -916,6 +995,8 @@ server <- function(input, output, session) {
           tabPanel("Feature Summary",
                    dataTableOutput('features_summary_table')
           ),
+          tabPanel('Feature Full',
+                   dataTableOutput('features_full_table')),
           # ADD THIS: New 3D structure tab
           tabPanel("3D Structure",
                    h5("AlphaFold Structure"),
@@ -928,7 +1009,21 @@ server <- function(input, output, session) {
         )
       )
     })
-  
+    
+    # ### PDB Viewer ####
+    # 
+    output$alphafold_info <- renderUI({
+      req(input$uniprot_select)
+      viewer_data <- create_alphafold_viewer(search_section(), input$uniprot_select[1])
+      viewer_data$info_card
+    })
+
+    output$alphafold_plot <- renderPlotly({
+      req(input$uniprot_select)
+      viewer_data <- create_alphafold_viewer(search_section(), input$uniprot_select[1])
+      viewer_data$plot_3d
+    })
+  file = 'alphafold_structures/AF-O95477-F1-model_v4.pdb'
 }
 
 

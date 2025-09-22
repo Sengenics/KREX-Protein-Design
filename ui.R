@@ -51,17 +51,22 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel('Input',
-                 h4("Proteins table"),
-                 DTOutput("proteinTable")
-        ),
-        tabPanel('Add Uniprot ID',
-                 actionButton("add_uniprot", "Add Uniprot"),
-                 uiOutput('add_uniprot_ui')),
+                 tabsetPanel(
+                   tabPanel('Input Table',
+                     
+                     h4("Proteins table"),
+                     DTOutput("proteinTable")
+                   ),
+      
+                  tabPanel('Add Uniprot ID',
+                           actionButton("add_uniprot", "Add Uniprot"),
+                           uiOutput('add_uniprot_ui'))
+        )),
         # tabPanel('Uniprot',
         #          uniprotFieldsManagerUI("fields_manager")
         #          ),
         tabPanel("Search Uniprot", 
-                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'Missing',inline = T),
+                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'All',inline = T),
                  uiOutput('uniprot_select_ui'),
                  #uniprotFieldSelectorUI("field_selector"),
                  #hr(),
@@ -77,6 +82,12 @@ ui <- fluidPage(
       tabPanel('Uniprot Features',
                uiOutput('uniprot_features_input_ui'),
                uiOutput('uniprot_features_output_ui')),
+      tabPanel("AlphaFold Structure",
+               fluidRow(
+                 column(4, uiOutput("alphafold_info")),
+                 column(8, plotlyOutput("alphafold_plot", height = "700px"))
+               )
+      )
 
     
     )
