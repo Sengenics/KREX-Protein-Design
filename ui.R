@@ -2,7 +2,9 @@
 # User interface
 
 ui <- fluidPage(
-  
+  tags$head(
+    tags$script(src = "https://3Dmol.csb.pitt.edu/build/3Dmol-min.js")
+  ),
   tags$head(
     tags$style(HTML("
     .dataTables_wrapper td {
@@ -87,6 +89,12 @@ ui <- fluidPage(
                  column(4, uiOutput("alphafold_info")),
                  column(8, plotlyOutput("alphafold_plot", height = "700px"))
                )
+      ),
+      tabPanel('Filter',
+      # In your tabPanel("Search", ...)
+        dynamicFilterUI("protein_filter"),
+        uiOutput('dynamic_filter_input_ui'),
+        uiOutput('dynamic_filter_output_ui')
       )
 
     

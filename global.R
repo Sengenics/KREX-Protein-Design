@@ -18,10 +18,17 @@ source('uniprot_field_functions.R')
 source('get_uniprot_fields.R')
 source('AlphaFold_functions.R')
 source('uniprot_features.R')
-source('unique_features_sub_2.R')
+source('unique_features_sub_1.6.R')
 source('pdb_vis_functions.R')
 source('terminal_impact.R')
 source('pdb_viewer_function.R')
+source('uniprot_feature_type_description.R')
+source('uniprot_subcellular_location_1.0.R')
+#source('uniprot_subunit_1.0.R')
+#source('uniprot_subunit_1.1.R')
+source('uniprot_subunit_1.3.R')
+source('secreted_functions_1.0.R')
+source('dynamic_filter_function_1.5.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

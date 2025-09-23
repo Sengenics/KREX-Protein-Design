@@ -374,7 +374,7 @@ server <- function(input, output, session) {
     })
     
     # Search Uniprot ####
-    observeEvent(input$search, {       
+    observeEvent(input$search, {           
       #req(input$uniprot_select)       
       #uniprot_ids <- input$uniprot_select
        
@@ -402,7 +402,7 @@ server <- function(input, output, session) {
         if(test == T){
           uniprot_ids = sample(uniprot_ids,30)
         }
-        uniprot_id = uniprot_ids[1]
+        (uniprot_id = uniprot_ids[1])
        # for(uniprot_id in uniprot_ids){
           
         for (i in seq_along(uniprot_ids)) {
@@ -420,10 +420,17 @@ server <- function(input, output, session) {
                 value = (i - 1) / total_steps
               )
               
-              data <- get_uniprot_info_data(uniprot_id)
               
-              values$data_list[[uniprot_id]] = data
-              saveRDS(values$data_list,'Data/data_list.rds')
+              if(uniprot_id %in% names(values$data_list)){
+                data = values$data_list[[uniprot_id]]
+              }else{
+                data <- get_uniprot_info_data(uniprot_id)
+                values$data_list[[uniprot_id]] = data
+              }
+              
+              #analyze_current_for_homo_multimer(data)
+              #multimer = get_simple_multimer_status(data)
+              #saveRDS(values$data_list,'Data/data_list.rds')
               
               uniprot_features = data.frame(
                 type = data$features$type,
@@ -446,7 +453,13 @@ server <- function(input, output, session) {
               # }else{
               #   feature_df = rbind(feature_df,uniprot_features)
               # }
-              result_df = uniprot_data_parse(data) %>% 
+              
+              #subunit_text <- extract_subunit_structure_corrected(data)
+              #multimer_status <- determine_multimeric_status_refined(subunit_text)
+              result_df = uniprot_data_parse(data) %>%
+                mutate('SUBCELLULAR LOCATION' = extract_subcellular_location_df(data)) %>% 
+                mutate('Secreted' = determine_secretion_from_data(data)) %>%
+                mutate('Multimeric' = get_simple_multimer_status(data)) %>% 
                 mutate(uniprot_id = uniprot_id) %>% 
                 dplyr::select(uniprot_id,everything())
               
@@ -600,7 +613,9 @@ server <- function(input, output, session) {
       colnames(feature_df)
       signal_df = feature_df %>% 
         filter(type == "Signal") %>% 
-        dplyr::select(one_of('uniprot_id','type','start','end','length'))
+        dplyr::select(one_of('uniprot_id','type','start','end','length')) %>% 
+        #renames(Signal = type) %>% 
+        mutate(Signal = ifelse(type == 'Signal','TRUE','FALSE'))
       
       sequence_signal_df = sequence_df %>% 
         left_join(signal_df)
@@ -812,10 +827,26 @@ server <- function(input, output, session) {
     })
     
     output$result_output_ui = renderUI({
-      consolidate_data()
+      result_list = consolidate_data() 
+      names(result_list)
       sequences()
       
       
+      uniprot_df = result_list$uniprot_df
+      colnames(uniprot_df)
+      
+
+      h = ggplot(uniprot_df) + 
+        geom_histogram(aes(x = protein_length),binwidth = 10) 
+      (h_z = h + 
+        coord_cartesian(xlim = c(0,2000)))
+      
+      output$uniprot_protein_size_full = renderPlot({
+        h
+      })
+      output$uniprot_protein_size_zoom = renderPlot({
+        h_z
+      })
       
       output$feature_list_text = renderText({
         feature_text = paste0(unique(consolidate_data()$feature_df$type),collapse = ', ')
@@ -841,6 +872,10 @@ server <- function(input, output, session) {
                    downloadButton("download_sequences_xlsx", "Excel", class = "btn-sm btn-outline-success"),
                    downloadButton("download_sequences_tsv", "tsv", class = "btn-sm btn-outline-success"),
                    DT::dataTableOutput('sequences_table')  
+                   ),
+          tabPanel('Protein Sizes',
+                   plotOutput('uniprot_protein_size_full'),
+                   plotOutput('uniprot_protein_size_zoom')
                    ),
           tabPanel("3D Structure",
                    h5("AlphaFold Structure"),
@@ -872,6 +907,12 @@ server <- function(input, output, session) {
       # Create the plots (your existing code)
       uniprot_id = uniprot_id_ind
       features_df = feature_df
+      uniprot_df = consolidate_data()$uniprot_df
+      output$uniprot_summary_table_ind = renderTable({
+        uniprot_df %>%
+          filter(uniprot_id == uniprot_id_ind) %>% 
+          dplyr::select(one_of('uniprot_id',"primaryAccession","genes_geneName","protein_length","protein_name"))
+      })
       
       plots <- visualize_protein(feature_df, uniprot_id_ind)
       
@@ -930,23 +971,54 @@ server <- function(input, output, session) {
       #   
       # })
       
-      output$protein_structure <- renderR3dmol({ 
+      # output$protein_structure <- renderR3dmol({ 
+      #   req(input$individual_uniprots)
+      #   
+      #   uniprot_id <- input$individual_uniprots
+      #   pdb_file <- file.path("alphafold_structures", paste0("AF-", uniprot_id, "-F1-model_v4.pdb"))
+      #   
+      #   if (file.exists(pdb_file)) {
+      #     pdb_content <- readLines(pdb_file, warn = FALSE)
+      #     pdb_string <- paste(pdb_content, collapse = "\n")
+      #     
+      #     r3dmol(elementId = paste0("structure_", uniprot_id)) %>%
+      #       m_add_model(data = pdb_string, format = "pdb") %>%
+      #       m_set_style(style = list(cartoon = list(color = "spectrum"))) %>%
+      #       m_zoom_to() %>%
+      #       m_spin()
+      #   }
+      # })
+      
+      output$protein_structure <- renderR3dmol({
         req(input$individual_uniprots)
-        
+
+        # Add small delay to ensure container is ready
+        Sys.sleep(0.1)
+
         uniprot_id <- input$individual_uniprots
         pdb_file <- file.path("alphafold_structures", paste0("AF-", uniprot_id, "-F1-model_v4.pdb"))
-        
+
         if (file.exists(pdb_file)) {
           pdb_content <- readLines(pdb_file, warn = FALSE)
           pdb_string <- paste(pdb_content, collapse = "\n")
-          
-          r3dmol(elementId = paste0("structure_", uniprot_id)) %>%
+
+          r3dmol() %>%  # Remove elementId - let Shiny handle it
             m_add_model(data = pdb_string, format = "pdb") %>%
             m_set_style(style = list(cartoon = list(color = "spectrum"))) %>%
             m_zoom_to() %>%
             m_spin()
+        } else {
+          # Return empty widget if file not found
+          r3dmol()
         }
       })
+      
+      # output$protein_structure <- renderR3dmol({ 
+      #   r3dmol() %>%
+      #     m_add_model(data = "ATOM      1  CA  ALA A   1      20.154  16.967  10.000", format = "pdb") %>%
+      #     m_set_style(style = list(sphere = list())) %>%
+      #     m_zoom_to()
+      # })
       
       # ADD THIS: Structure info
       output$structure_info <- renderText({
@@ -958,12 +1030,14 @@ server <- function(input, output, session) {
         }
       })
     })
+    proteinFeaturesHelpServer("help")
     
     # Update your UI output
     output$uniprot_features_output_ui = renderUI({
       req(input$individual_uniprots)
       
       tagList(
+        tableOutput('uniprot_summary_table_ind'),
         h4(paste("Analysis for", input$individual_uniprots)),
         #textOutput('sequence_text'),
         
@@ -997,18 +1071,28 @@ server <- function(input, output, session) {
           ),
           tabPanel('Feature Full',
                    dataTableOutput('features_full_table')),
+          tabPanel("Feature Guide", proteinFeaturesHelpUI("help")),
           # ADD THIS: New 3D structure tab
           tabPanel("3D Structure",
                    h5("AlphaFold Structure"),
                    verbatimTextOutput('structure_info'),
                    br(),
-                   r3dmolOutput('protein_structure', height = "500px")
+                   #r3dmolOutput('protein_structure', height = "500px")
+                   div(style = "height: 500px; width: 100%;",
+                       r3dmolOutput('protein_structure', height = "500px", width = "100%"))
                    
                    
           )
         )
       )
     })
+    
+    # output$protein_structure <- renderR3dmol({ 
+    #   r3dmol() %>%
+    #     m_add_model(data = "ATOM      1  CA  ALA A   1      20.154  16.967  10.000", format = "pdb") %>%
+    #     m_set_style(style = list(sphere = list())) %>%
+    #     m_zoom_to()
+    # })
     
     # ### PDB Viewer ####
     # 
@@ -1024,6 +1108,29 @@ server <- function(input, output, session) {
       viewer_data$plot_3d
     })
   file = 'alphafold_structures/AF-O95477-F1-model_v4.pdb'
+  
+  ## Dynamic Filter ####
+  # After you create result_df
+  result_df <- reactive({  
+    df = consolidate_data()$uniprot_df %>% 
+      left_join(sequences(), by = 'uniprot_id')
+    dim(df)
+    df
+  })
+  
+  filtered_proteins <- dynamicFilterServer("protein_filter", result_df)
+  
+  output$dynamic_filter_input_ui = renderUI({
+    df = consolidate_data()$uniprot_df
+    (col_names = colnames(df))
+
+  })
+  
+  output$dynamic_filter_output_ui = renderUI({
+    
+  })
+  
+  # Now you can use filtered_proteins() anywhere in your app
 }
 
 
