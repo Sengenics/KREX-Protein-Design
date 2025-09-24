@@ -225,6 +225,12 @@ server <- function(input, output, session) {
       }else{
         values$data_list = list()
       }
+      
+      if(file.exists('Data/impact_issues.rds')){
+        values$impact_issues = readRDS('Data/impact_issues.rds')
+      }else{
+        values$impact_issues = list()
+      }
  
     })
     
@@ -404,7 +410,7 @@ server <- function(input, output, session) {
         }
         (uniprot_id = uniprot_ids[1])
        # for(uniprot_id in uniprot_ids){
-          
+        i = 1
         for (i in seq_along(uniprot_ids)) {
           uniprot_id <- uniprot_ids[i]
           
@@ -456,12 +462,51 @@ server <- function(input, output, session) {
               
               #subunit_text <- extract_subunit_structure_corrected(data)
               #multimer_status <- determine_multimeric_status_refined(subunit_text)
+              
+              impact_analysis <- analyze_terminal_tag_impact(uniprot_features, uniprot_id = uniprot_id,
+                                                             c_term_buffer = input$c_term_buffer,
+                                                             n_term_buffer = input$n_term_buffer)
+              impact_df = as.data.frame(impact_analysis[names(impact_analysis) != 'summary'])
+              names(impact_analysis)
+              
+              impact_issues_df = impact_analysis$c_terminal_issues %>% 
+                mutate('uniprot_id' = uniprot_id,
+                       'Terminal' = 'C-terminal',
+                       'buffer' = input$c_term_buffer) %>% 
+                rbind(impact_analysis$n_terminal_issues %>% 
+                            mutate('uniprot_id' = uniprot_id,
+                                   'Terminal' = 'N-terminal',
+                                   'buffer' = input$n_term_buffer)) %>% 
+                dplyr::select(uniprot_id,Terminal,everything())
+              
+              values$impact_issues[[uniprot_id]] = impact_issues_df
+              saveRDS(values$impact_issues,'Data/impact_issues.rds')
+                
               result_df = uniprot_data_parse(data) %>%
                 mutate('SUBCELLULAR LOCATION' = extract_subcellular_location_df(data)) %>% 
                 mutate('Secreted' = determine_secretion_from_data(data)) %>%
+                mutate('SubUnits' = extract_subunit_structure_corrected(data)) %>% 
                 mutate('Multimeric' = get_simple_multimer_status(data)) %>% 
+                mutate('c_term_buffer' = input$c_term_buffer,
+                       #'c_terminal_issues' = impact_analysis$c_terminal_issues,
+                       'c_terminal_score' = impact_analysis$c_terminal_score,
+                       'n_term_buffer' = input$n_term_buffer,
+                       #'n_terminal_issues' = impact_analysis$n_terminal_issues,
+                       'n_terminal_score' = impact_analysis$n_terminal_score,
+                       'preferred_terminus' = impact_analysis$preferred_terminus,
+                       'recommendation' = impact_analysis$recommendation
+                       )
+                
+                colnames(result_df)
                 mutate(uniprot_id = uniprot_id) %>% 
                 dplyr::select(uniprot_id,everything())
+              
+              
+              
+              
+                
+                
+              
               
               values$uniprot_list[[uniprot_id]] = result_df
               saveRDS(values$uniprot_list,'Data/uniprot_list.rds')
@@ -602,7 +647,7 @@ server <- function(input, output, session) {
     
     ## Sequences #####
     
-    sequences = reactive({
+    sequences = reactive({ 
       uniprot_df = consolidate_data()$uniprot_df
       feature_df = consolidate_data()$feature_df
       
@@ -613,13 +658,17 @@ server <- function(input, output, session) {
       colnames(feature_df)
       signal_df = feature_df %>% 
         filter(type == "Signal") %>% 
-        dplyr::select(one_of('uniprot_id','type','start','end','length')) %>% 
+        dplyr::select(one_of('uniprot_id','type','start','end','length')) 
         #renames(Signal = type) %>% 
-        mutate(Signal = ifelse(type == 'Signal','TRUE','FALSE'))
+        
+      
+      unique(signal_df$Signal)
       
       sequence_signal_df = sequence_df %>% 
-        left_join(signal_df)
-      
+        left_join(signal_df) %>% 
+        mutate(Signal = ifelse(type == 'Signal','TRUE','FALSE')) %>% 
+        mutate(Signal = ifelse(is.na(Signal),'FALSE',Signal))
+      unique(sequence_signal_df$Signal)
       vector
       colnames(vector)
       unique(vector$Vector)
@@ -908,18 +957,22 @@ server <- function(input, output, session) {
       uniprot_id = uniprot_id_ind
       features_df = feature_df
       uniprot_df = consolidate_data()$uniprot_df
+      colnames(uniprot_df)
       output$uniprot_summary_table_ind = renderTable({
         uniprot_df %>%
           filter(uniprot_id == uniprot_id_ind) %>% 
-          dplyr::select(one_of('uniprot_id',"primaryAccession","genes_geneName","protein_length","protein_name"))
+          dplyr::select(one_of('uniprot_id',"primaryAccession","genes_geneName",
+                               "protein_length","protein_name",
+                               'Secreted','Multimeric'))
       })
       
       plots <- visualize_protein(feature_df, uniprot_id_ind)
       
       output$tagging_report <- renderUI({
-        #req(input$uniprot_select)
+        #req(input$uniprot_select) 
         
         impact_analysis <- analyze_terminal_tag_impact(feature_df, uniprot_id = uniprot_id_ind)
+        
         report_text <- create_tagging_report(impact_analysis)
         report_text
         # Convert to HTML with line breaks
@@ -1111,14 +1164,23 @@ server <- function(input, output, session) {
   
   ## Dynamic Filter ####
   # After you create result_df
-  result_df <- reactive({  
+  result_df <- reactive({   
     df = consolidate_data()$uniprot_df %>% 
       left_join(sequences(), by = 'uniprot_id')
-    dim(df)
+    
+
     df
   })
   
+  feature_df = reactive({
+    consolidate_data()$feature_df
+  })
+  
   filtered_proteins <- dynamicFilterServer("protein_filter", result_df)
+  
+  final_proteins <- featureExclusionServer("feature_filter",
+                                           filtered_proteins,      # Already reactive
+                                           feature_df) 
   
   output$dynamic_filter_input_ui = renderUI({
     df = consolidate_data()$uniprot_df

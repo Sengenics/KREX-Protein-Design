@@ -10,7 +10,7 @@ analyze_terminal_tag_impact <- function(features_df, uniprot_id = NULL, sequence
   
   if (is.null(sequence_length)) {
     max_end <- max(features_df$end, na.rm = TRUE)
-    sequence_length <- ifelse(is.finite(max_end), max_end + 50, 1000)
+    sequence_length <- ifelse(is.finite(max_end), max_end, 1000)
   }
   
   protein_id <- unique(features_df$uniprot_id)[1]

@@ -68,7 +68,7 @@ ui <- fluidPage(
         #          uniprotFieldsManagerUI("fields_manager")
         #          ),
         tabPanel("Search Uniprot", 
-                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'All',inline = T),
+                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'Full DB',inline = T),
                  uiOutput('uniprot_select_ui'),
                  #uniprotFieldSelectorUI("field_selector"),
                  #hr(),
@@ -76,10 +76,20 @@ ui <- fluidPage(
                 
                  selectInput('database_search','Databases',c('Uniprot','AlphaFold','AlphaFold PDB'),'Uniprot',multiple = T),
                  radioButtons('uniprot_rerun','Rerun',c(F,T),F,inline = T),
+                 numericInput('c_term_buffer','C-term Buffer',30),
+                 numericInput('n_term_buffer','N-term Buffer',30),
                  actionButton("search", "Search"),
                  hr(),
                  uiOutput('result_output_ui')
                 
+      ),
+
+      tabPanel('Filter',
+      # In your tabPanel("Search", ...)
+        dynamicFilterUI("protein_filter"),
+        featureExclusionUI("feature_filter"),
+        uiOutput('dynamic_filter_input_ui'),
+        uiOutput('dynamic_filter_output_ui')
       ),
       tabPanel('Uniprot Features',
                uiOutput('uniprot_features_input_ui'),
@@ -90,12 +100,6 @@ ui <- fluidPage(
                  column(8, plotlyOutput("alphafold_plot", height = "700px"))
                )
       ),
-      tabPanel('Filter',
-      # In your tabPanel("Search", ...)
-        dynamicFilterUI("protein_filter"),
-        uiOutput('dynamic_filter_input_ui'),
-        uiOutput('dynamic_filter_output_ui')
-      )
 
     
     )

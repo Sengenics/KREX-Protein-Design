@@ -29,6 +29,7 @@ source('uniprot_subcellular_location_1.0.R')
 source('uniprot_subunit_1.3.R')
 source('secreted_functions_1.0.R')
 source('dynamic_filter_function_1.5.R')
+source('dynamic_feature_filter_1.2.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

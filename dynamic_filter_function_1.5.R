@@ -26,10 +26,10 @@ dynamicFilterUI <- function(id) {
     
     wellPanel(
       h5("Filter Summary"),
-      verbatimTextOutput(ns("filter_summary")),
+      verbatimTextOutput(ns("filter_summary"))#,
       
-      h5("Filtered Results"),
-      DTOutput(ns("filtered_table"))
+      # h5("Filtered Results"),
+      # DTOutput(ns("filtered_table"))
     )
   )
 }
@@ -268,7 +268,7 @@ dynamicFilterServer <- function(id, data) {
       }
       
       datatable(
-        df,
+        truncate_long_text(df,25),
         options = list(
           pageLength = 15,
           scrollX = TRUE,
