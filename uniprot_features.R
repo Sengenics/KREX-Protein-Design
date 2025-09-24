@@ -680,7 +680,9 @@ plot_feature_lengths <- function(features_df, uniprot_id = NULL) {
 }
 
 # Quick visualization function - all plots for one protein
-visualize_protein <- function(features_df, uniprot_id, sequence_length = NULL) {
+visualize_protein <- function(features_df, uniprot_id, sequence_length = NULL, 
+                              c_term_buffer = 30,
+                              n_term_buffer = 30) {
   
   cat("Creating visualizations for", uniprot_id, "...\n")
   
@@ -696,7 +698,9 @@ visualize_protein <- function(features_df, uniprot_id, sequence_length = NULL) {
   
   # Create plots
   plots <- list(
-    feature_map = plot_protein_features(protein_features, uniprot_id, sequence_length),
+    feature_map = plot_protein_features(protein_features, uniprot_id, sequence_length, 
+                                        c_term_buffer = c_term_buffer,
+                                        n_term_buffer = n_term_buffer),
     domain_arch = plot_domain_architecture(protein_features, uniprot_id),
     length_dist = plot_feature_lengths(protein_features, uniprot_id),
     summary_table = summarize_features(protein_features, uniprot_id)

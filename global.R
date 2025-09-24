@@ -24,12 +24,13 @@ source('terminal_impact.R')
 source('pdb_viewer_function.R')
 source('uniprot_feature_type_description.R')
 source('uniprot_subcellular_location_1.0.R')
-#source('uniprot_subunit_1.0.R')
+source('uniprot_subunit_1.0.R')
 #source('uniprot_subunit_1.1.R')
-source('uniprot_subunit_1.3.R')
+#source('uniprot_subunit_1.3.R')
 source('secreted_functions_1.0.R')
 source('dynamic_filter_function_1.5.R')
 source('dynamic_feature_filter_1.2.R')
+source('proteinReport_functions_1.1.R')
 
 # Default example file bundled with the project
 example_file <- "Data/Protein Design Example.xlsx"

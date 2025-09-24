@@ -384,7 +384,7 @@ server <- function(input, output, session) {
       #req(input$uniprot_select)       
       #uniprot_ids <- input$uniprot_select
        
-      (uniprot_ids_all = uniprot_ids())
+      (uniprot_ids_all = uniprot_ids()) 
      
       
       
@@ -482,7 +482,7 @@ server <- function(input, output, session) {
               values$impact_issues[[uniprot_id]] = impact_issues_df
               saveRDS(values$impact_issues,'Data/impact_issues.rds')
                 
-              result_df = uniprot_data_parse(data) %>%
+              uniprot_df_ind = uniprot_data_parse(data) %>%
                 mutate('SUBCELLULAR LOCATION' = extract_subcellular_location_df(data)) %>% 
                 mutate('Secreted' = determine_secretion_from_data(data)) %>%
                 mutate('SubUnits' = extract_subunit_structure_corrected(data)) %>% 
@@ -495,20 +495,12 @@ server <- function(input, output, session) {
                        'n_terminal_score' = impact_analysis$n_terminal_score,
                        'preferred_terminus' = impact_analysis$preferred_terminus,
                        'recommendation' = impact_analysis$recommendation
-                       )
-                
-                colnames(result_df)
+                       ) %>% 
                 mutate(uniprot_id = uniprot_id) %>% 
                 dplyr::select(uniprot_id,everything())
+            
               
-              
-              
-              
-                
-                
-              
-              
-              values$uniprot_list[[uniprot_id]] = result_df
+              values$uniprot_list[[uniprot_id]] = uniprot_df_ind
               saveRDS(values$uniprot_list,'Data/uniprot_list.rds')
               
               # if(is.null(uniprot_df)){
@@ -744,7 +736,10 @@ server <- function(input, output, session) {
     ### Features ####
     
   output$uniprot_features_input_ui = renderUI({
-    uniprot_ids = unique(consolidate_data()$feature_df$uniprot_id)
+    
+    #uniprot_ids = unique(consolidate_data()$feature_df$uniprot_id)
+    #final_proteins()
+    (uniprot_ids = unique(final_proteins()$uniprot_id))
     selectInput('individual_uniprots','Single Protein',uniprot_ids)
   })
     
@@ -958,15 +953,32 @@ server <- function(input, output, session) {
       features_df = feature_df
       uniprot_df = consolidate_data()$uniprot_df
       colnames(uniprot_df)
+      
+      impact_df = rbindlist(values$impact_issues) %>% 
+        
+        filter(uniprot_id == uniprot_id_ind)
+      output$uniprot_term_table_ind = renderTable({
+        uniprot_df %>%
+          filter(uniprot_id == uniprot_id_ind) %>% 
+          dplyr::select(one_of('uniprot_id',"c_term_buffer", "c_terminal_score","n_term_buffer" , "n_terminal_score",       
+                               "preferred_terminus", "recommendation"))
+      })
+      
+      output$uniprot_term_detail_table_ind = renderTable({
+        impact_df
+      })
+      
       output$uniprot_summary_table_ind = renderTable({
         uniprot_df %>%
           filter(uniprot_id == uniprot_id_ind) %>% 
           dplyr::select(one_of('uniprot_id',"primaryAccession","genes_geneName",
                                "protein_length","protein_name",
-                               'Secreted','Multimeric'))
+                               'Secreted','Multimeric',"preferred_terminus"))
       })
       
-      plots <- visualize_protein(feature_df, uniprot_id_ind)
+      plots <- visualize_protein(feature_df, uniprot_id_ind, 
+                                 c_term_buffer = input$c_term_buffer,
+                                 n_term_buffer = input$n_term_buffer)
       
       output$tagging_report <- renderUI({
         #req(input$uniprot_select) 
@@ -1083,6 +1095,8 @@ server <- function(input, output, session) {
         }
       })
     })
+    
+    
     proteinFeaturesHelpServer("help")
     
     # Update your UI output
@@ -1091,7 +1105,9 @@ server <- function(input, output, session) {
       
       tagList(
         tableOutput('uniprot_summary_table_ind'),
-        h4(paste("Analysis for", input$individual_uniprots)),
+        tableOutput('uniprot_term_table_ind'),
+        tableOutput('uniprot_term_detail_table_ind'),
+        #h4(paste("Analysis for", input$individual_uniprots)),
         #textOutput('sequence_text'),
         
         # div(
@@ -1105,7 +1121,7 @@ server <- function(input, output, session) {
         #   textOutput("tagging_report")
         # ),
         #html("tagging_report"),
-        uiOutput("tagging_report"),
+        #uiOutput("tagging_report"),
         
         div(
           style = "word-wrap: break-word; white-space: pre-wrap; overflow-wrap: break-word;",
@@ -1191,6 +1207,52 @@ server <- function(input, output, session) {
   output$dynamic_filter_output_ui = renderUI({
     
   })
+  
+  ## Report ####
+  
+  # In your server, call it like this (simplified - no plots parameter needed):
+  proteinReportServer("protein_report",
+                      reactive({ input$individual_uniprots }),
+                      consolidate_data,
+                      reactive({ values$impact_issues }),
+                      reactive({ input$c_term_buffer }),  # Optional: buffer settings
+                      reactive({ input$n_term_buffer }))  # Optional: buffer settings
+  
+  
+  # Replace your existing proteinReportServer call with this debug version
+  proteinReportServer_debug <- function(id, uniprot_id_reactive, consolidate_data_func, 
+                                        impact_issues_reactive) {
+    moduleServer(id, function(input, output, session) {
+      
+      output$download_report <- downloadHandler(
+        filename = function() {
+          uniprot_id <- uniprot_id_reactive()
+          paste0("Debug_Protein_Report_", uniprot_id, "_", Sys.Date(), ".docx")
+        },
+        
+        content = function(file) {
+          uniprot_id <- uniprot_id_reactive()
+          
+          withProgress(message = 'Generating debug report...', value = 0, {
+            
+            # Generate debug report
+            temp_file <- generate_protein_report_debug(
+              uniprot_id = uniprot_id,
+              consolidate_data_func = consolidate_data_func,
+              impact_issues_list = impact_issues_reactive()
+            )
+            
+            incProgress(1, detail = "Complete!")
+            
+            # Copy to download location
+            file.copy(temp_file, file)
+          })
+        },
+        
+        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      )
+    })
+  }
   
   # Now you can use filtered_proteins() anywhere in your app
 }

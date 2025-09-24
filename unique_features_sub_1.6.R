@@ -1,7 +1,7 @@
 # Enhanced protein features plot with categorized tracks
 # Copy this function into your functions file
 
-plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_length = NULL, terminus_highlight_length = 50) {
+plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_length = NULL, c_term_buffer = 50, n_term_buffer = 50) {
   
   # Filter for specific protein if provided
   if (!is.null(uniprot_id)) {
@@ -15,7 +15,7 @@ plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_lengt
   if (is.null(sequence_length)) {
     # Use max end position, but handle case where all ends are NA
     max_end <- max(features_df$end, na.rm = TRUE)
-    sequence_length <- ifelse(is.finite(max_end), max_end + 50, 1000)  # Default to 1000 if no valid ends
+    sequence_length <- ifelse(is.finite(max_end), max_end, 1000)  # Default to 1000 if no valid ends
   }
   
   if (nrow(features_df) == 0) {
@@ -265,8 +265,8 @@ plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_lengt
     )
   
   # Add N-terminus and C-terminus highlighting (configurable length)
-  n_term_end <- min(terminus_highlight_length, sequence_length)
-  c_term_start <- max(1, sequence_length - terminus_highlight_length + 1)
+  n_term_end <- min(n_term_buffer, sequence_length)
+  c_term_start <- max(1, sequence_length - c_term_buffer + 1)
   
   # Add N-terminus shading
   if (n_term_end > 0) {
@@ -279,7 +279,7 @@ plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_lengt
         fill = "toself",
         fillcolor = "rgba(255, 200, 200, 0.3)",  # Light red with transparency
         line = list(color = "rgba(255, 150, 150, 0.5)", width = 1),
-        name = paste("N-terminus (", terminus_highlight_length, " aa)", sep = ""),
+        name = paste("N-terminus (", n_term_buffer, " aa)", sep = ""),
         hovertemplate = paste("N-terminus region: 1-", n_term_end, " aa<extra></extra>"),
         showlegend = TRUE
       )
@@ -296,7 +296,7 @@ plot_protein_features <- function(features_df, uniprot_id = NULL, sequence_lengt
         fill = "toself",
         fillcolor = "rgba(255, 200, 200, 0.3)",  # Light red with transparency
         line = list(color = "rgba(255, 150, 150, 0.5)", width = 1),
-        name = paste("C-terminus (", terminus_highlight_length, " aa)", sep = ""),
+        name = paste("C-terminus (", c_term_buffer, " aa)", sep = ""),
         hovertemplate = paste("C-terminus region: ", c_term_start, "-", sequence_length, " aa<extra></extra>"),
         showlegend = TRUE
       )

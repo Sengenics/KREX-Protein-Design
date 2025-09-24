@@ -92,6 +92,7 @@ ui <- fluidPage(
         uiOutput('dynamic_filter_output_ui')
       ),
       tabPanel('Uniprot Features',
+               proteinReportUI("protein_report"),
                uiOutput('uniprot_features_input_ui'),
                uiOutput('uniprot_features_output_ui')),
       tabPanel("AlphaFold Structure",
