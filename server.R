@@ -1292,7 +1292,12 @@ server <- function(input, output, session) {
         value = (i - 1) / total_steps
       )
       
+      
+      
       openai_df = data.frame('uniprot_id' = uniprot_id)
+      
+      
+      
       values$openai[[uniprot_id]] = openai_df
       saveRDS(values$openai,'Data/openai.rds')
       
