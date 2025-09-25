@@ -4,7 +4,8 @@ first = F
 if(first == T){
   # Please run this line before running the app the setup the package environment
   #renv::restore()
-  renv::init()
+  renv::init() # restore from current lockfile
+  
 }
 source('renv/activate.R')
 
