@@ -13,29 +13,32 @@ library(data.table)
 library(ggplot2)
 library(plotly)
 
-source('uniprot functions.R')
-source('uniprot_field_functions.R')
-source('get_uniprot_fields.R')
-source('AlphaFold_functions.R')
-source('uniprot_features.R')
-source('unique_features_sub_1.6.R')
-source('pdb_vis_functions.R')
-source('terminal_impact.R')
-source('pdb_viewer_function.R')
-source('uniprot_feature_type_description.R')
-source('uniprot_subcellular_location_1.0.R')
-source('uniprot_subunit_1.0.R')
+source('functions/uniprot functions.R')
+source('functions/uniprot_field_functions.R')
+source('functions/get_uniprot_fields.R')
+source('functions/AlphaFold_functions.R')
+source('functions/uniprot_features.R')
+source('functions/unique_features_sub_1.6.R')
+source('functions/pdb_vis_functions.R')
+source('functions/terminal_impact.R')
+source('functions/pdb_viewer_function.R')
+source('functions/uniprot_feature_type_description.R')
+source('functions/uniprot_subcellular_location_1.0.R')
+source('functions/uniprot_subunit_1.0.R')
 #source('uniprot_subunit_1.1.R')
 #source('uniprot_subunit_1.3.R')
-source('secreted_functions_1.0.R')
-source('dynamic_filter_function_1.5.R')
-source('dynamic_feature_filter_1.2.R')
-source('proteinReport_functions_1.1.R')
+source('functions/secreted_functions_1.0.R')
+source('functions/dynamic_filter_function_1.5.R')
+source('functions/dynamic_feature_filter_1.2.R')
+source('functions/zzz/proteinReport_functions_1.0.R')
 
 # Default example file bundled with the project
-example_file <- "Data/Protein Design Example.xlsx"
+#example_file <- "Data/Protein Design Example.xlsx"
+example_file <- "../InputData/add_uniprot_data_2025_1018_Mismatches.xlsx"
 
-vector = read_excel("Data/Vectors.xlsx")
+#vector = read_excel("Data/Vectors.xlsx")
+vector = read_excel("../InputData/Vectors.xlsx")
+
 colnames(vector)
 # Helper: safely read an Excel sheet, returning a tibble or NULL on error
 read_excel_safe <- function(path, sheet) {

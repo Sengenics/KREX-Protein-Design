@@ -68,7 +68,7 @@ ui <- fluidPage(
         #          uniprotFieldsManagerUI("fields_manager")
         #          ),
         tabPanel("Search Uniprot", 
-                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'Full DB',inline = T),
+                 radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'All',inline = T),
                  uiOutput('uniprot_select_ui'),
                  #uniprotFieldSelectorUI("field_selector"),
                  #hr(),
