@@ -1,17 +1,9 @@
 # global.R
 # Shared setup & helpers for Protein Design Example app
 
-library(shiny)
-library(readxl)
-library(DT)
-library(dplyr)
-library(stringr) 
-library(httr)
-library(jsonlite)
-library(openxlsx)
-library(data.table)
-library(ggplot2)
-library(plotly)
+source('renv/activate.R')
+
+source('functions/packages.R')
 
 source('functions/uniprot functions.R')
 source('functions/uniprot_field_functions.R')

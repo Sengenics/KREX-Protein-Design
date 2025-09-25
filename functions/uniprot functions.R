@@ -1,11 +1,7 @@
 # UniProt Search Module for R Shiny
 # This module searches UniProt and retrieves basic protein information
 
-library(shiny)
-library(DT)
-library(httr)
-library(jsonlite)
-library(shinycssloaders)
+
 
 # Function to query UniProt API (using base R only)
 get_uniprot_info <- function(uniprot_id) {

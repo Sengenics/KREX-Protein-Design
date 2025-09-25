@@ -1,8 +1,5 @@
 # Simplified Dynamic Protein Filtering System for Shiny
 
-library(shiny)
-library(DT)
-library(dplyr)
 
 # UI Module for Dynamic Filtering - SIMPLIFIED
 dynamicFilterUI <- function(id) {

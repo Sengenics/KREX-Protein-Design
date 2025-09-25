@@ -1,9 +1,7 @@
 # AlphaFold API Integration for R
 # Access AlphaFold protein structure predictions via their REST API
 
-library(httr)
-library(jsonlite)
-library(dplyr)
+
 
 # AlphaFold API base URLs
 ALPHAFOLD_API_BASE <- "https://alphafold.ebi.ac.uk/api"

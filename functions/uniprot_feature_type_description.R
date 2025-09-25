@@ -1,8 +1,7 @@
 # protein_features_help.R
 # Help documentation for protein features - to be used as a tab in Shiny app
 
-library(shiny)
-library(DT)
+
 
 # Create the help content UI
 proteinFeaturesHelpUI <- function(id) {

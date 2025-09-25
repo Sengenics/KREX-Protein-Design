@@ -1,6 +1,5 @@
 # UniProt Field Selector and Enhanced Search Function
-library(shiny)
-library(jsonlite)
+
 
 # Complete list of UniProt fields available via API
 # Fixed UniProt Field Selector - separates display names from field codes
