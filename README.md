@@ -1,18 +1,12 @@
-## Setup Instructions
-
-1. Clone the repository
-2. Open the R project in RStudio
-3. Run `renv::restore()` in the console to install packages
-4. Run the app with `shiny::runApp()`
-
 
 Create a folder in this directory
 
 ```
 Software Development/Protein Design Automation/Shiny App/Automated Protein Design App
+mkdir <name>_dev
+cd <name>_dev
 ```
 
-pwd
 # Git Command line
 ```
 git init
@@ -32,8 +26,11 @@ Open Project in Rstudio
 First run, to setup the package environment
 
 ```
-renv::restore()
+renv::init()
 ```
+Select : 
+1: Restore the project from the lockfile.
+
 
 Open global.R amd Run App
 
