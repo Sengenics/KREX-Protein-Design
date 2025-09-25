@@ -40,14 +40,14 @@ ui <- fluidPage(
         "Upload Excel file (.xlsx or .xls)",
         accept = c(".xlsx", ".xls")
       ),
+      strong("Active file:"),
+      verbatimTextOutput("filePath", placeholder = TRUE),
       uiOutput("sheetPicker"),
       numericInput('row_number','Start Row',0),
       uiOutput('uniprot_col_ui'),
       hr(),
-      
-      strong("Active file:"),
-      verbatimTextOutput("filePath", placeholder = TRUE),
-      helpText("If no file is uploaded, the app uses: Data/Protein Design Example.xlsx (sheet 'Proteins' or sheet 3).")
+      numericInput('c_term_buffer','C-term Buffer',30),
+      numericInput('n_term_buffer','N-term Buffer',30)
     ),
     
     mainPanel(
@@ -61,6 +61,8 @@ ui <- fluidPage(
                    ),
       
                   tabPanel('Add Uniprot ID',
+                           tags$h5('Please select a gene symbol column as input in the Uniprot Column menu, then run Add Uniprot. The app will search the uniprot db for uniprot entries matching the gene symbol. 
+                                   Save this file and import it as the new input file.'),
                            actionButton("add_uniprot", "Add Uniprot"),
                            uiOutput('add_uniprot_ui'))
         )),
@@ -68,19 +70,29 @@ ui <- fluidPage(
         #          uniprotFieldsManagerUI("fields_manager")
         #          ),
         tabPanel("Search Uniprot", 
+                 
+                 
                  radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'All',inline = T),
                  uiOutput('uniprot_select_ui'),
-                 #uniprotFieldSelectorUI("field_selector"),
-                 #hr(),
-                 #textInput("uniprot_id", "UniProt ID:", value = "P04637"),
-                
-                 selectInput('database_search','Databases',c('Uniprot','AlphaFold','AlphaFold PDB'),'Uniprot',multiple = T),
-                 radioButtons('uniprot_rerun','Rerun',c(F,T),F,inline = T),
-                 numericInput('c_term_buffer','C-term Buffer',30),
-                 numericInput('n_term_buffer','N-term Buffer',30),
-                 actionButton("search", "Search"),
-                 hr(),
-                 uiOutput('result_output_ui')
+                 tabsetPanel(
+                   tabPanel('Uniprot',
+                     #uniprotFieldSelectorUI("field_selector"),
+                     #hr(),
+                     #textInput("uniprot_id", "UniProt ID:", value = "P04637"),
+                    
+                     selectInput('database_search','Databases',c('Uniprot','AlphaFold','AlphaFold PDB'),'Uniprot',multiple = T),
+                     radioButtons('uniprot_rerun','Rerun',c(F,T),F,inline = T),
+                    
+                     actionButton("search", "Search"),
+                     hr(),
+                     uiOutput('result_output_ui')
+                   ),
+                   tabPanel("Open AI",
+                            actionButton('openai_search','Search'),
+                            uiOutput('openai_input_ui'),
+                            uiOutput('openai_output_ui')
+                            )
+                 )
                 
       ),
 
