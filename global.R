@@ -1,6 +1,10 @@
 # global.R
 # Shared setup & helpers for Protein Design Example app
-
+first = F
+if(first == T){
+  # Please run this line before running the app the setup the package environment
+  renv::restore()
+}
 source('renv/activate.R')
 
 source('functions/packages.R')
@@ -22,7 +26,7 @@ source('functions/uniprot_subunit_1.0.R')
 source('functions/secreted_functions_1.0.R')
 source('functions/dynamic_filter_function_1.5.R')
 source('functions/dynamic_feature_filter_1.2.R')
-source('functions/zzz/proteinReport_functions_1.0.R')
+source('functions/proteinReport_functions_1.0.R')
 
 # Default example file bundled with the project
 #example_file <- "Data/Protein Design Example.xlsx"
