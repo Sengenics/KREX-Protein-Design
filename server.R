@@ -1068,7 +1068,7 @@ server <- function(input, output, session) {
         Sys.sleep(0.1)
 
         uniprot_id <- input$individual_uniprots
-        pdb_file <- file.path("alphafold_structures", paste0("AF-", uniprot_id, "-F1-model_v4.pdb"))
+        pdb_file <- file.path("../InputData/alphafold_structures", paste0("AF-", uniprot_id, "-F1-model_v4.pdb"))
 
         if (file.exists(pdb_file)) {
           pdb_content <- readLines(pdb_file, warn = FALSE)
