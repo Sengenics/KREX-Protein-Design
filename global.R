@@ -3,7 +3,8 @@
 first = F
 if(first == T){
   # Please run this line before running the app the setup the package environment
-  renv::restore()
+  #renv::restore()
+  renv::init()
 }
 source('renv/activate.R')
 
