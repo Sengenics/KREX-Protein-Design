@@ -935,7 +935,7 @@ server <- function(input, output, session) {
       
     })
   
-    uniprot_fields <- uniprotFieldsManagerServer("fields_manager")
+    #uniprot_fields <- uniprotFieldsManagerServer("fields_manager")
     
     
     ## PDB VIS #####

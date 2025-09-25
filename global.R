@@ -15,7 +15,7 @@ library(plotly)
 
 source('functions/uniprot functions.R')
 source('functions/uniprot_field_functions.R')
-source('functions/get_uniprot_fields.R')
+#source('functions/get_uniprot_fields.R')
 source('functions/AlphaFold_functions.R')
 source('functions/uniprot_features.R')
 source('functions/unique_features_sub_1.6.R')
