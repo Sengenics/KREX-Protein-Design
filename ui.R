@@ -1,6 +1,8 @@
 # ui.R
 # User interface
 
+OpenAI_ui = source('shiny_sections/OpenAI_ui.R',local = T)$value
+
 ui <- fluidPage(
   tags$head(
     tags$script(src = "https://3Dmol.csb.pitt.edu/build/3Dmol-min.js")
@@ -88,9 +90,10 @@ ui <- fluidPage(
                      uiOutput('result_output_ui')
                    ),
                    tabPanel("Open AI",
-                            actionButton('openai_search','Search'),
-                            uiOutput('openai_input_ui'),
-                            uiOutput('openai_output_ui')
+                            OpenAI_ui
+                            # actionButton('openai_search','Search'),
+                            # uiOutput('openai_input_ui'),
+                            # uiOutput('openai_output_ui')
                             )
                  )
                 
