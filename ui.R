@@ -91,9 +91,6 @@ ui <- fluidPage(
                    ),
                    tabPanel("Open AI",
                             OpenAI_ui
-                            # actionButton('openai_search','Search'),
-                            # uiOutput('openai_input_ui'),
-                            # uiOutput('openai_output_ui')
                             )
                  )
                 
