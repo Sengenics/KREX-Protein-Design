@@ -31,6 +31,9 @@ ui <- fluidPage(
   ),
   titlePanel("Protein Design — Upload & Preview"),
   
+  tabsetPanel(
+    tabPanel("Start"),
+    tabPanel('Main',
   sidebarLayout(
     sidebarPanel(
       actionButton("debug", "Debug"),
@@ -54,6 +57,7 @@ ui <- fluidPage(
     
     mainPanel(
       tabsetPanel(
+        
         tabPanel('Input',
                  tabsetPanel(
                    tabPanel('Input Table',
@@ -73,7 +77,7 @@ ui <- fluidPage(
         #          ),
         tabPanel("Search Uniprot", 
                  
-                 
+                 textOutput('upload'),
                  radioButtons('uniprot_data_selection','Data',c("Full DB",'All',"Missing",'Subset'),'All',inline = T),
                  uiOutput('uniprot_select_ui'),
                  tabsetPanel(
@@ -106,15 +110,19 @@ ui <- fluidPage(
       tabPanel('Uniprot Features',
                proteinReportUI("protein_report"),
                uiOutput('uniprot_features_input_ui'),
-               uiOutput('uniprot_features_output_ui')),
-      tabPanel("AlphaFold Structure",
-               fluidRow(
-                 column(4, uiOutput("alphafold_info")),
-                 column(8, plotlyOutput("alphafold_plot", height = "700px"))
-               )
-      ),
+               uiOutput('uniprot_features_output_ui'),
+               div(style = "height: 50px;"),
+               pdbViewerUI("pdb_viewer")
+               
+               
+               ), 
+      tabPanel('Features Full',
+               dataTableOutput('features_df_individual_table')
+      )
 
-    
+
+      )
+    )
     )
   )
 )

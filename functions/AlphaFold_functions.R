@@ -114,51 +114,53 @@ get_uniprot_with_alphafold <- function(uniprot_ids, selected_fields = default_se
 }
 
 # Function to download AlphaFold structure files
-download_alphafold_structure <- function(uniprot_id, format = "pdb", output_dir = "alphafold_structures") {
-  tryCatch({
-    # Create output directory if it doesn't exist
-    if (!dir.exists(output_dir)) {
-      dir.create(output_dir, recursive = TRUE)
-    }
-    
-    # Get prediction metadata first
-    prediction <- get_alphafold_prediction(uniprot_id)
-    
-    if ("error" %in% names(prediction)) {
-      return(list(success = FALSE, error = prediction$error))
-    }
-    
-    # Choose URL based on format
-    if (format == "pdb") {
-      download_url <- prediction$pdbUrl
-      file_ext <- ".pdb"
-    } else if (format == "cif" || format == "mmcif") {
-      download_url <- prediction$mmcifUrl
-      file_ext <- ".cif"
-    } else {
-      return(list(success = FALSE, error = "Format must be 'pdb' or 'cif'"))
-    }
-    
-    if (is.null(download_url)) {
-      return(list(success = FALSE, error = "Download URL not available"))
-    }
-    
-    # Download the file
-    filename <- paste0("AF-", uniprot_id, "-F1-model_v4", file_ext)
-    filepath <- file.path(output_dir, filename)
-    
-    response <- GET(download_url, write_disk(filepath, overwrite = TRUE))
-    
-    if (status_code(response) == 200) {
-      return(list(success = TRUE, filepath = filepath, filename = filename))
-    } else {
-      return(list(success = FALSE, error = paste("Download failed:", status_code(response))))
-    }
-    
-  }, error = function(e) {
-    return(list(success = FALSE, error = paste("Error:", e$message)))
-  })
-}
+# download_alphafold_structure <- function(uniprot_id, format = "pdb", output_dir = "alphafold_structures") {
+#   tryCatch({
+#     # Create output directory if it doesn't exist
+#     if (!dir.exists(output_dir)) {
+#       dir.create(output_dir, recursive = TRUE)
+#     }
+#     
+#     # Get prediction metadata first
+#     prediction <- get_alphafold_prediction(uniprot_id)
+#     
+#     if ("error" %in% names(prediction)) {
+#       return(list(success = FALSE, error = prediction$error))
+#     }
+#     
+#     # Choose URL based on format
+#     if (format == "pdb") {
+#       download_url <- prediction$pdbUrl
+#       file_ext <- ".pdb"
+#     } else if (format == "cif" || format == "mmcif") {
+#       download_url <- prediction$mmcifUrl
+#       file_ext <- ".cif"
+#     } else {
+#       return(list(success = FALSE, error = "Format must be 'pdb' or 'cif'"))
+#     }
+#     
+#     if (is.null(download_url)) {
+#       return(list(success = FALSE, error = "Download URL not available"))
+#     }
+#     
+#     # Download the file
+#     filename <- paste0("AF-", uniprot_id, "-F1-model_v4", file_ext)
+#     
+#     filepath <- file.path(output_dir, filename)
+#     print(filepath)
+#     
+#     response <- GET(download_url, write_disk(filepath, overwrite = TRUE))
+#     
+#     if (status_code(response) == 200) {
+#       return(list(success = TRUE, filepath = filepath, filename = filename))
+#     } else {
+#       return(list(success = FALSE, error = paste("Download failed:", status_code(response))))
+#     }
+#     
+#   }, error = function(e) {
+#     return(list(success = FALSE, error = paste("Error:", e$message)))
+#   })
+# }
 
 # Function to get AlphaFold confidence summary
 get_alphafold_confidence_summary <- function(uniprot_id) {

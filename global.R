@@ -26,15 +26,20 @@ source('functions/uniprot_subunit_1.0.R')
 #source('uniprot_subunit_1.1.R')
 #source('uniprot_subunit_1.3.R')
 source('functions/secreted_functions_1.0.R')
-source('functions/dynamic_filter_function_1.5.R')
+source('functions/dynamic_filter_function_1.6.R')
 source('functions/dynamic_feature_filter_1.2.R')
 source('functions/proteinReport_functions_1.0.R')
+source('functions/uniprot_quaternary.R')
+source('functions/download_pdb_1.1.R')
+source('functions/pdb_viewer_shiny_1.3.R')
 
 # Default example file bundled with the project
 #example_file <- "Data/Protein Design Example.xlsx"
 example_file <- "../InputData/add_uniprot_data_2025_1018_Mismatches.xlsx"
 
 #vector = read_excel("Data/Vectors.xlsx")
+vector = read_excel("../InputData/Vectors.xlsx")
+
 vector = read_excel("../InputData/Vectors.xlsx")
 
 colnames(vector)

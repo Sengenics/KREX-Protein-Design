@@ -10,7 +10,7 @@ server <- function(input, output, session) {
   
   # Current path: uploaded file (if present) else example file
   current_path <- reactive({ 
-    upload()
+    #upload()
     if (!is.null(input$excel) && nzchar(input$excel$datapath)) {
       input$excel$datapath
     } else {
@@ -123,6 +123,8 @@ server <- function(input, output, session) {
     )
   })
   
+
+  
   output$uniprot_select_ui = renderUI({
     df = table_data()   
     uniprot_col = input$uniprot_column
@@ -205,11 +207,30 @@ server <- function(input, output, session) {
     ## ReactiveValues ####
     values = reactiveValues()
     
+    output$upload = renderText({
+      upload()
+      print('')
+    })
+    
     upload = reactive({
-      if(file.exists('Data/uniprot_list.rds')){
-        values$uniprot_list = readRDS('Data/uniprot_list.rds')
-      }else{
-        values$uniprot_list = list()
+      # if(file.exists('Data/uniprot_list.rds')){
+      #   values$uniprot_list = readRDS('Data/uniprot_list.rds')
+      # }else{
+      #   values$uniprot_list = list()
+      # }
+      
+      if (file.exists('Data/uniprot_list.rds')) {
+        tryCatch({
+          values$uniprot_list <- readRDS('Data/uniprot_list.rds')
+          cat("Loaded uniprot_list with", length(values$uniprot_list), "entries\n")
+        }, error = function(e) {
+          cat("Error reading uniprot_list.rds:", e$message, "\n")
+          cat("Deleting corrupted file and starting fresh\n")
+          file.remove('Data/uniprot_list.rds')
+          values$uniprot_list <- list()
+        })
+      } else {
+        values$uniprot_list <- list()
       }
       if(file.exists('Data/feature_list.rds')){
         values$feature_list = readRDS('Data/feature_list.rds')
@@ -221,6 +242,13 @@ server <- function(input, output, session) {
       }else{
         values$alpha_list = list()
       }
+      
+      if(file.exists('Data/pdb_structure.rds')){
+        values$pdb_structure = readRDS('Data/pdb_structure.rds')
+      }else{
+        values$pdb_structure = list()
+      }
+      
       if(file.exists('Data/data_list.rds')){
         values$data_list = readRDS('Data/data_list.rds')
       }else{
@@ -387,11 +415,11 @@ server <- function(input, output, session) {
     })
     
     # Search Uniprot ####
-    observeEvent(input$search, {           
+    observeEvent(input$search, {               
       #req(input$uniprot_select)       
       #uniprot_ids <- input$uniprot_select
        
-      (uniprot_ids_all = uniprot_ids()) 
+      (uniprot_ids_all = uniprot_ids())  
      
       
       
@@ -401,7 +429,7 @@ server <- function(input, output, session) {
       }else{
         uniprot_ids = uniprot_ids_all
       }
-      
+      length(uniprot_ids)
       # Initialize progress bar
       progress <- shiny::Progress$new()
       on.exit(progress$close())  # Ensure progress bar closes even if error occurs
@@ -419,9 +447,11 @@ server <- function(input, output, session) {
        # for(uniprot_id in uniprot_ids){
         i = 1
         for (i in seq_along(uniprot_ids)) {
-          uniprot_id <- uniprot_ids[i]
+          (uniprot_id <- uniprot_ids[i])
           
         tryCatch({
+            
+        
             if('Uniprot' %in% input$database_search){
               print(uniprot_id)
               print(paste(grep(uniprot_id,uniprot_ids),'of',length(uniprot_ids)))
@@ -433,13 +463,13 @@ server <- function(input, output, session) {
                 value = (i - 1) / total_steps
               )
               
-              
               if(uniprot_id %in% names(values$data_list)){
                 data = values$data_list[[uniprot_id]]
               }else{
                 data <- get_uniprot_info_data(uniprot_id)
                 values$data_list[[uniprot_id]] = data
               }
+         
               
               #analyze_current_for_homo_multimer(data)
               #multimer = get_simple_multimer_status(data)
@@ -488,23 +518,41 @@ server <- function(input, output, session) {
               
               values$impact_issues[[uniprot_id]] = impact_issues_df
               saveRDS(values$impact_issues,'Data/impact_issues.rds')
-                
+              
+              
+              #'   
+              #' uniprot_df_ind = uniprot_data_parse(data) %>%
+              #'   mutate('SUBCELLULAR LOCATION' = extract_subcellular_location_df(data)) %>% 
+              #'   mutate('Secreted' = determine_secretion_from_data(data)) %>%
+              #'   mutate('SubUnits' = extract_subunit_structure_corrected(data)) %>% 
+              #'   mutate('Multimeric' = get_simple_multimer_status(data)) %>% 
+              #'   mutate('c_term_buffer' = input$c_term_buffer,
+              #'          #'c_terminal_issues' = impact_analysis$c_terminal_issues,
+              #'          'c_terminal_score' = impact_analysis$c_terminal_score,
+              #'          'n_term_buffer' = input$n_term_buffer,
+              #'          #'n_terminal_issues' = impact_analysis$n_terminal_issues,
+              #'          'n_terminal_score' = impact_analysis$n_terminal_score,
+              #'          'preferred_terminus' = impact_analysis$preferred_terminus,
+              #'          'recommendation' = impact_analysis$recommendation
+              #'          ) %>% 
+              #'   mutate(uniprot_id = uniprot_id) %>% 
+              #'   dplyr::select(uniprot_id,everything())
+              
               uniprot_df_ind = uniprot_data_parse(data) %>%
                 mutate('SUBCELLULAR LOCATION' = extract_subcellular_location_df(data)) %>% 
                 mutate('Secreted' = determine_secretion_from_data(data)) %>%
-                mutate('SubUnits' = extract_subunit_structure_corrected(data)) %>% 
-                mutate('Multimeric' = get_simple_multimer_status(data)) %>% 
+                mutate('SubUnits' = extract_subunit_text(data)) %>%  # Use the new extraction function
+                add_quaternary_structure_info(subunit_column = "SubUnits") %>%  # Add this line
+                #mutate('Multimeric' = get_simple_multimer_status(data)) %>% 
                 mutate('c_term_buffer' = input$c_term_buffer,
-                       #'c_terminal_issues' = impact_analysis$c_terminal_issues,
                        'c_terminal_score' = impact_analysis$c_terminal_score,
                        'n_term_buffer' = input$n_term_buffer,
-                       #'n_terminal_issues' = impact_analysis$n_terminal_issues,
                        'n_terminal_score' = impact_analysis$n_terminal_score,
                        'preferred_terminus' = impact_analysis$preferred_terminus,
                        'recommendation' = impact_analysis$recommendation
-                       ) %>% 
+                ) %>% 
                 mutate(uniprot_id = uniprot_id) %>% 
-                dplyr::select(uniprot_id,everything())
+                dplyr::select(uniprot_id, everything())
             
               
               values$uniprot_list[[uniprot_id]] = uniprot_df_ind
@@ -533,7 +581,19 @@ server <- function(input, output, session) {
               saveRDS(values$alpha_list,'Data/alpha_list.rds')
             }
             if('AlphaFold PDB' %in% input$database_search){
-              alpha_fold_structure = download_alphafold_structure(uniprot_id)
+              # alpha_fold_structure = download_alphafold_structure(uniprot_id,
+              #                                                     format = "pdb", 
+              #                                                     output_dir = "../InputData/alphafold_structures/")
+              update_url_list = T
+              output_dir = "../InputData/alphafold_structures/"
+              
+              result <- download_protein_structure(uniprot_id, "../InputData/alphafold_structures/",overwrite = T)
+ 
+              print(result)
+              #if(update_url_list == T){
+              values$pdb_structure[[uniprot_id]] = result
+              saveRDS(values$pdb_structure,'Data/pdb_structure.rds')
+              #}
             }
             
           }, error = function(e) {
@@ -552,96 +612,236 @@ server <- function(input, output, session) {
       }
     })
     
+    # consolidate_data = reactive({   
+    #   
+    #   feature_list = values$feature_list
+    #   uniprot_list = values$uniprot_list
+    #   alpha_list = values$alpha_list
+    #   
+    #   #library('data.table')
+    #   feature_df = rbindlist(feature_list,fill = T) %>% 
+    #     filter(uniprot_id %in% uniprot_ids())
+    #   uniprot_df = rbindlist(uniprot_list,fill = T) %>% 
+    #     filter(uniprot_id %in% uniprot_ids())
+    #   alpha_df = rbindlist(alpha_list,fill = T) %>% 
+    #     filter(uniprot_id %in% uniprot_ids())
+    #   
+    #     
+    #     output$uniprot_features <- DT::renderDataTable({
+    #       DT::datatable(feature_df, options = list(scrollX = TRUE))
+    #     })
+    #     #result_df = uniprot_data_parse(data)
+    #     #a_prediction = get_alphafold_batch(uniprot_id)
+    #     truncated_result_df = truncate_long_text(uniprot_df,30)
+    #     output$uniprot_results <- DT::renderDataTable({
+    #       DT::datatable(truncated_result_df, options = list(scrollX = TRUE))
+    #     })
+    #     #a_prediction = parse_alphafold_data(get_alphafold_batch(uniprot_id))
+    #     truncated_alpha_df = truncate_long_text(alpha_df,50)
+    #     output$alphafold_results <- DT::renderDataTable({
+    #       DT::datatable(truncated_alpha_df, options = list(scrollX = TRUE))
+    #     })
+    #     
+    #     
+    #     output$download_uniprot_xlsx <- downloadHandler(
+    #       filename = function() {
+    #         paste0("uniprot_data_", Sys.Date(), ".xlsx")
+    #       },
+    #       content = function(file) {
+    #         data <- uniprot_df
+    #         if (!is.null(data) && nrow(data) > 0) {
+    #           write.xlsx(data, file, rowNames = FALSE)
+    #         } else {
+    #           write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+    #         }
+    #       }
+    #     )
+    #     
+    #     output$download_uniprot_tsv <- downloadHandler(
+    #       filename = function() {
+    #         paste0("uniprot_data_", Sys.Date(), ".tsv")
+    #       },
+    #       content = function(file) {
+    #         data <- uniprot_df
+    #         if (!is.null(data) && nrow(data) > 0) {
+    #           data.table::fwrite(data, file,sep = '\t')
+    #         }
+    #       }
+    #     )
+    #     
+    #     output$download_features_xlsx <- downloadHandler(
+    #       filename = function() {
+    #         paste0("uniprot_features_", Sys.Date(), ".xlsx")
+    #       },
+    #       content = function(file) {
+    #         data <- feature_df
+    #         if (!is.null(data) && nrow(data) > 0) {
+    #           write.xlsx(data, file, rowNames = FALSE)
+    #         } else {
+    #           write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+    #         }
+    #       }
+    #     )
+    #     
+    #     output$download_alphafold_xlsx <- downloadHandler(
+    #       filename = function() {
+    #         paste0("alphafold_data_", Sys.Date(), ".xlsx")
+    #       },
+    #       content = function(file) {
+    #         data <- alpha_df
+    #         if (!is.null(data) && nrow(data) > 0) {
+    #           write.xlsx(data, file, rowNames = FALSE)
+    #         } else {
+    #           write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
+    #         }
+    #       }
+    #     )
+    #     
+    #   #   #alpha_fold_structure = download_alphafold_structure(uniprot_id)
+    #   list(#data_list = data_list,
+    #        uniprot_df = uniprot_df,
+    #        alpha_df = alpha_df,
+    #        feature_df = feature_df)
+    # })
+    
     consolidate_data = reactive({   
+      
+      # Validate that the lists exist and have data
+      req(values$feature_list)
+      req(values$uniprot_list)
+      req(values$alpha_list)
       
       feature_list = values$feature_list
       uniprot_list = values$uniprot_list
       alpha_list = values$alpha_list
+      pdb_list = values$pdb_structure
       
-      #library('data.table')
-      feature_df = rbindlist(feature_list,fill = T) %>% 
-        filter(uniprot_id %in% uniprot_ids())
-      uniprot_df = rbindlist(uniprot_list,fill = T) %>% 
-        filter(uniprot_id %in% uniprot_ids())
-      alpha_df = rbindlist(alpha_list,fill = T) %>% 
-        filter(uniprot_id %in% uniprot_ids())
+      # Check that lists are not empty
+      if (length(feature_list) == 0 || length(uniprot_list) == 0 || length(alpha_list) == 0) {
+        return(list(
+          uniprot_df = data.frame(),
+          alpha_df = data.frame(),
+          feature_df = data.frame()
+        ))
+      }
       
-        
-        output$uniprot_features <- DT::renderDataTable({
-          DT::datatable(feature_df, options = list(scrollX = TRUE))
-        })
-        #result_df = uniprot_data_parse(data)
-        #a_prediction = get_alphafold_batch(uniprot_id)
-        truncated_result_df = truncate_long_text(uniprot_df,30)
-        output$uniprot_results <- DT::renderDataTable({
-          DT::datatable(truncated_result_df, options = list(scrollX = TRUE))
-        })
-        #a_prediction = parse_alphafold_data(get_alphafold_batch(uniprot_id))
-        truncated_alpha_df = truncate_long_text(alpha_df,50)
-        output$alphafold_results <- DT::renderDataTable({
-          DT::datatable(truncated_alpha_df, options = list(scrollX = TRUE))
-        })
-        
-        
-        output$download_uniprot_xlsx <- downloadHandler(
-          filename = function() {
-            paste0("uniprot_data_", Sys.Date(), ".xlsx")
-          },
-          content = function(file) {
-            data <- uniprot_df
-            if (!is.null(data) && nrow(data) > 0) {
-              write.xlsx(data, file, rowNames = FALSE)
-            } else {
-              write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
-            }
+      # Bind rows and check for uniprot_id column BEFORE filtering
+      feature_df = rbindlist(feature_list, fill = TRUE)
+      uniprot_df = rbindlist(uniprot_list, fill = TRUE)
+      alpha_df = rbindlist(alpha_list, fill = TRUE)
+      pdb_df = rbindlist(pdb_list,fill = TRUE)
+      
+      
+      # Debug: Check what columns exist after rbindlist
+      cat("\n=== After rbindlist ===\n")
+      cat("feature_df columns:", names(feature_df), "\n")
+      cat("uniprot_df columns:", names(uniprot_df), "\n")
+      cat("alpha_df columns:", names(alpha_df), "\n")
+      
+      # Only filter if uniprot_id column exists AND uniprot_ids() has values
+      if ("uniprot_id" %in% names(feature_df) && length(uniprot_ids()) > 0) {
+        feature_df <- feature_df %>% 
+          filter(uniprot_id %in% uniprot_ids())
+      }
+      
+      if ("uniprot_id" %in% names(uniprot_df) && length(uniprot_ids()) > 0) {
+        uniprot_df <- uniprot_df %>% 
+          filter(uniprot_id %in% uniprot_ids())
+      }
+      
+      if ("uniprot_id" %in% names(alpha_df) && length(uniprot_ids()) > 0) {
+        alpha_df <- alpha_df %>% 
+          filter(uniprot_id %in% uniprot_ids())
+      }
+      
+      # Rest of your code for outputs...
+      output$uniprot_features <- DT::renderDataTable({
+        DT::datatable(feature_df, options = list(scrollX = TRUE))
+      })
+      
+      truncated_result_df = truncate_long_text(uniprot_df, 30)
+      output$uniprot_results <- DT::renderDataTable({
+        DT::datatable(truncated_result_df, options = list(scrollX = TRUE))
+      })
+      
+      truncated_alpha_df = truncate_long_text(alpha_df, 50)
+      output$alphafold_results <- DT::renderDataTable({
+        DT::datatable(truncated_alpha_df, options = list(scrollX = TRUE))
+      })
+      
+      output$pdb_successTable <- renderTable({
+        as.data.frame(table(pdb_df$success))
+      })
+      
+      output$pdb_results <- DT::renderDataTable({
+        DT::datatable(pdb_df, options = list(scrollX = TRUE))
+      })
+      
+      
+      
+      # ... rest of your download handlers ...
+      
+      output$download_uniprot_xlsx <- downloadHandler(
+        filename = function() {
+          paste0("uniprot_data_", Sys.Date(), ".xlsx")
+        },
+        content = function(file) {
+          data <- uniprot_df
+          if (!is.null(data) && nrow(data) > 0) {
+            write.xlsx(data, file, rowNames = FALSE)
+          } else {
+            write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
           }
-        )
-        
-        output$download_uniprot_tsv <- downloadHandler(
-          filename = function() {
-            paste0("uniprot_data_", Sys.Date(), ".tsv")
-          },
-          content = function(file) {
-            data <- uniprot_df
-            if (!is.null(data) && nrow(data) > 0) {
-              data.table::fwrite(data, file,sep = '\t')
-            }
+        }
+      )
+      
+      output$download_uniprot_tsv <- downloadHandler(
+        filename = function() {
+          paste0("uniprot_data_", Sys.Date(), ".tsv")
+        },
+        content = function(file) {
+          data <- uniprot_df
+          if (!is.null(data) && nrow(data) > 0) {
+            data.table::fwrite(data, file, sep = '\t')
           }
-        )
-        
-        output$download_features_xlsx <- downloadHandler(
-          filename = function() {
-            paste0("uniprot_features_", Sys.Date(), ".xlsx")
-          },
-          content = function(file) {
-            data <- feature_df
-            if (!is.null(data) && nrow(data) > 0) {
-              write.xlsx(data, file, rowNames = FALSE)
-            } else {
-              write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
-            }
+        }
+      )
+      
+      output$download_features_xlsx <- downloadHandler(
+        filename = function() {
+          paste0("uniprot_features_", Sys.Date(), ".xlsx")
+        },
+        content = function(file) {
+          data <- feature_df
+          if (!is.null(data) && nrow(data) > 0) {
+            write.xlsx(data, file, rowNames = FALSE)
+          } else {
+            write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
           }
-        )
-        
-        output$download_alphafold_xlsx <- downloadHandler(
-          filename = function() {
-            paste0("alphafold_data_", Sys.Date(), ".xlsx")
-          },
-          content = function(file) {
-            data <- alpha_df
-            if (!is.null(data) && nrow(data) > 0) {
-              write.xlsx(data, file, rowNames = FALSE)
-            } else {
-              write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
-            }
+        }
+      )
+      
+      output$download_alphafold_xlsx <- downloadHandler(
+        filename = function() {
+          paste0("alphafold_data_", Sys.Date(), ".xlsx")
+        },
+        content = function(file) {
+          data <- alpha_df
+          if (!is.null(data) && nrow(data) > 0) {
+            write.xlsx(data, file, rowNames = FALSE)
+          } else {
+            write.xlsx(data.frame(Message = "No data available"), file, rowNames = FALSE)
           }
-        )
-        
-      #   #alpha_fold_structure = download_alphafold_structure(uniprot_id)
-      list(#data_list = data_list,
-           uniprot_df = uniprot_df,
-           alpha_df = alpha_df,
-           feature_df = feature_df)
+        }
+      )
+      
+      # Return the dataframes
+      list(
+        uniprot_df = uniprot_df,
+        alpha_df = alpha_df,
+        feature_df = feature_df,
+        pdb_df = pdb_df
+      )
     })
     
     ## Sequences #####
@@ -856,10 +1056,7 @@ server <- function(input, output, session) {
           br(),
           h5("Feature Summary"),
           dataTableOutput('features_summary_table')
-        ), 
-        tabPanel('Features Full',
-                 dataTableOutput('features_df_individual_table')
-                 )
+        )
       )
     )
   })
@@ -909,10 +1106,16 @@ server <- function(input, output, session) {
             tags$h3('Uniprot'),
             downloadButton("download_uniprot_xlsx", "Excel", class = "btn-sm btn-outline-success"),
             downloadButton("download_uniprot_tsv", "tsv", class = "btn-sm btn-outline-success"),
-            DT::dataTableOutput('uniprot_results'),
-            tags$h3("Alpha Fold"),
-            downloadButton("download_alphafold_xlsx", "Excel", class = "btn-sm btn-outline-success"),
-            DT::dataTableOutput('alphafold_results')
+            DT::dataTableOutput('uniprot_results')
+          ),
+          tabPanel('PDB',
+            tableOutput('pdb_successTable'),
+            DT::dataTableOutput('pdb_results')
+            
+            # tags$h3("Alpha Fold"),
+            # downloadButton("download_alphafold_xlsx", "Excel", class = "btn-sm btn-outline-success"),
+            # DT::dataTableOutput('alphafold_results')
+            
           ),
           tabPanel('Features',
                    downloadButton("download_features_xlsx", "Excel", class = "btn-sm btn-outline-success"),
@@ -1187,11 +1390,37 @@ server <- function(input, output, session) {
   
   ## Dynamic Filter ####
   # After you create result_df
+  # result_df <- reactive({   
+  #   df = consolidate_data()$uniprot_df %>% 
+  #     left_join(sequences(), by = 'uniprot_id')
+  #   df
+  # })
+  
   result_df <- reactive({   
-    df = consolidate_data()$uniprot_df %>% 
-      left_join(sequences(), by = 'uniprot_id')
+    # Debug: Check what columns exist
+    cat("\n=== DEBUGGING result_df ===\n")
     
-
+    df1 <- consolidate_data()$uniprot_df
+    cat("Columns in consolidate_data()$uniprot_df:\n")
+    print(names(df1))
+    
+    df2 <- sequences()
+    cat("\nColumns in sequences():\n")
+    print(names(df2))
+    
+    cat("\nChecking for 'uniprot_id' column:\n")
+    cat("  In df1:", "uniprot_id" %in% names(df1), "\n")
+    cat("  In df2:", "uniprot_id" %in% names(df2), "\n")
+    
+    # If uniprot_id doesn't exist, find similar columns
+    cat("\nColumns containing 'uniprot' (case-insensitive):\n")
+    cat("  In df1:", grep("uniprot", names(df1), ignore.case = TRUE, value = TRUE), "\n")
+    cat("  In df2:", grep("uniprot", names(df2), ignore.case = TRUE, value = TRUE), "\n")
+    
+    # Now try the join
+    df = df1 %>% 
+      left_join(df2, by = 'uniprot_id')
+    
     df
   })
   
@@ -1264,6 +1493,15 @@ server <- function(input, output, session) {
   source('shiny_sections/OpenAI_server.R',local = T)
   
   
+  # PDB Viewer 2
+  
+     selected_uniprot <- reactive({
+       req(input$individual_uniprots)
+       input$individual_uniprots # Use first selected protein
+     })
+
+     # Call PDB viewer server
+     pdbViewerServer("pdb_viewer", selected_uniprot, pdb_folder = "../InputData/alphafold_structures/")
   # Now you can use filtered_proteins() anywhere in your app
 }
 
