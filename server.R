@@ -1349,19 +1349,19 @@ server <- function(input, output, session) {
                    dataTableOutput('features_summary_table')
           ),
           tabPanel('Feature Full',
-                   dataTableOutput('features_full_table')),
-          tabPanel("Feature Guide", proteinFeaturesHelpUI("help")),
+                   dataTableOutput('features_full_table'))
+         
           # ADD THIS: New 3D structure tab
-          tabPanel("3D Structure",
-                   h5("AlphaFold Structure"),
-                   verbatimTextOutput('structure_info'),
-                   br(),
-                   #r3dmolOutput('protein_structure', height = "500px")
-                   div(style = "height: 500px; width: 100%;",
-                       r3dmolOutput('protein_structure', height = "500px", width = "100%"))
-                   
-                   
-          )
+          # tabPanel("3D Structure",
+          #          h5("AlphaFold Structure"),
+          #          verbatimTextOutput('structure_info'),
+          #          br(),
+          #          #r3dmolOutput('protein_structure', height = "500px")
+          #          div(style = "height: 500px; width: 100%;",
+          #              r3dmolOutput('protein_structure', height = "500px", width = "100%"))
+          #          
+          #          
+          # )
         )
       )
     })
@@ -1503,6 +1503,14 @@ server <- function(input, output, session) {
      # Call PDB viewer server
      pdbViewerServer("pdb_viewer", selected_uniprot, pdb_folder = "../InputData/alphafold_structures/")
   # Now you can use filtered_proteins() anywhere in your app
+     
+     
+     proteinReportGeneratorServer(
+       "report_gen",
+       protein_data = reactive({ filtered_proteins }),
+       feature_data = reactive({ feature_impacts }),
+       report_data = reactive({ recommendation_data })
+     )
 }
 
 

@@ -108,7 +108,8 @@ ui <- fluidPage(
         uiOutput('dynamic_filter_output_ui')
       ),
       tabPanel('Uniprot Features',
-               proteinReportUI("protein_report"),
+               #proteinReportUI("protein_report"),
+               proteinReportGeneratorUI("report_gen"),
                uiOutput('uniprot_features_input_ui'),
                uiOutput('uniprot_features_output_ui'),
                div(style = "height: 50px;"),
@@ -116,9 +117,10 @@ ui <- fluidPage(
                
                
                ), 
-      tabPanel('Features Full',
-               dataTableOutput('features_df_individual_table')
-      )
+      tabPanel("Feature Guide", proteinFeaturesHelpUI("help"))
+      # tabPanel('Features Full',
+      #          dataTableOutput('features_df_individual_table')
+      # )
 
 
       )

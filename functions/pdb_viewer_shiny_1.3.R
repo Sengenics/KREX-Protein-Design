@@ -79,8 +79,8 @@ pdbViewerUI <- function(id) {
                 ns("termini_size"),
                 "Termini Size:",
                 min = 0.5,
-                max = 3.0,
-                value = 1.0,
+                max = 5.0,
+                value = 3.0,
                 step = 0.1
               )
             )
@@ -213,7 +213,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
         
         for (chain in info$chains) {
           # N-terminus (blue) with adjustable size
-          n_style <- m_style_cartoon(color = "blue")
+          n_style <- m_style_cartoon(color = c_colour)
           n_style$radius <- size_multiplier  # Adjust thickness
           
           viewer <- viewer %>%
@@ -226,14 +226,14 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$min_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "blue",
+                fontColor = c_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
             )
           
           # C-terminus (red) with adjustable size
-          c_style <- m_style_cartoon(color = "red")
+          c_style <- m_style_cartoon(color = n_colour)
           c_style$radius <- size_multiplier
           
           viewer <- viewer %>%
@@ -246,7 +246,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$max_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "red",
+                fontColor = n_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
@@ -282,8 +282,8 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
         
         for (chain in info$chains) {
           # Determine color based on current style
-          n_term_color <- "blue"
-          c_term_color <- "red"
+          n_term_color <- c_colour
+          c_term_color <- n_colour
           
           # N-terminus highlighting with size adjustment
           n_term_style <- switch(
@@ -355,7 +355,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$min_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "blue",
+                fontColor = c_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
@@ -369,7 +369,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$max_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "red",
+                fontColor = n_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
@@ -408,7 +408,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
         
         for (chain in info$chains) {
           # N-terminus with size adjustment
-          n_style <- m_style_cartoon(color = "blue")
+          n_style <- m_style_cartoon(color = c_colour)
           n_style$radius <- size_multiplier
           
           viewer <- viewer %>%
@@ -421,14 +421,14 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$min_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "blue",
+                fontColor = c_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
             )
           
           # C-terminus with size adjustment
-          c_style <- m_style_cartoon(color = "red")
+          c_style <- m_style_cartoon(color = n_colour)
           c_style$radius <- size_multiplier
           
           viewer <- viewer %>%
@@ -441,7 +441,7 @@ pdbViewerServer <- function(id, uniprot_id, pdb_folder = "pdb_files") {
               sel = m_sel(chain = chain, resi = info$max_res),
               style = list(
                 fontSize = 14 * size_multiplier,
-                fontColor = "red",
+                fontColor = n_colour,
                 backgroundColor = "white",
                 backgroundOpacity = 0.7
               )
