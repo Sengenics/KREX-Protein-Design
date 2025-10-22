@@ -2,6 +2,8 @@
 # User interface
 
 OpenAI_ui = source('shiny_sections/OpenAI_ui.R',local = T)$value
+IEDB_ui = source('shiny_sections/IEDB_ui.R',local = T)$value
+
 
 ui <- fluidPage(
   tags$head(
@@ -94,7 +96,9 @@ ui <- fluidPage(
                             # actionButton('openai_search','Search'),
                             # uiOutput('openai_input_ui'),
                             # uiOutput('openai_output_ui')
-                            )
+                            ),
+                   tabPanel("IEDB",
+                            IEDB_ui)
                  )
                 
       ),
@@ -116,6 +120,8 @@ ui <- fluidPage(
                  column(8, plotlyOutput("alphafold_plot", height = "700px"))
                )
       ),
+      tabPanel("Expression Strategy", 
+               source("shiny_sections/Decision_ui.R", local = TRUE)$value),
 
     
     )

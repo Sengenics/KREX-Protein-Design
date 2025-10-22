@@ -17,7 +17,9 @@ required_packages <- c(
   "r3dmol",
   "shinycssloaders",
   "officer",          # For Word document generation
-  "flextable"         # For formatted tables in Word
+  "flextable",         # For formatted tables in Word
+  "r3dmol",
+  "bio3d"
 )
 
 # Function to check and install packages

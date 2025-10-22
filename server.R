@@ -238,6 +238,24 @@ server <- function(input, output, session) {
       }else{
         values$openai = list()
       }
+      
+      if(file.exists('Data/iedb.rds')){
+        values$iedb= readRDS('Data/iedb.rds')
+      }else{
+        values$iedb = list()
+      }
+      
+      if(file.exists('Data/decision.rds')){
+        values$decision= readRDS('Data/decision.rds')
+      }else{
+        values$decision = list()
+      }
+      
+      if(file.exists('Data/structure_prediction.rds')){
+        values$structure_prediction= readRDS('Data/structure_prediction.rds')
+      }else{
+        values$structure_prediction = list()
+      }
  
     })
     
@@ -1262,8 +1280,8 @@ server <- function(input, output, session) {
   }
   
   source('shiny_sections/OpenAI_server.R',local = T)
-  
-  
+  source("shiny_sections/Decision_server.R", local = TRUE)
+  source("shiny_sections/IEDB_server.R", local = TRUE)
   # Now you can use filtered_proteins() anywhere in your app
 }
 

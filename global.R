@@ -29,6 +29,11 @@ source('functions/secreted_functions_1.0.R')
 source('functions/dynamic_filter_function_1.5.R')
 source('functions/dynamic_feature_filter_1.2.R')
 source('functions/proteinReport_functions_1.0.R')
+source("functions/openai_functions.R")
+source("functions/decision_functions.R")
+source("functions/plot_protein_features_with_epitopes.R")
+source("functions/iedb_functions.R")
+source("functions/structure_prediction.R")
 
 # Default example file bundled with the project
 #example_file <- "Data/Protein Design Example.xlsx"
@@ -36,7 +41,7 @@ example_file <- "../InputData/add_uniprot_data_2025_1018_Mismatches.xlsx"
 
 #vector = read_excel("Data/Vectors.xlsx")
 vector = read_excel("../InputData/Vectors.xlsx")
-
+                 
 colnames(vector)
 # Helper: safely read an Excel sheet, returning a tibble or NULL on error
 read_excel_safe <- function(path, sheet) {
