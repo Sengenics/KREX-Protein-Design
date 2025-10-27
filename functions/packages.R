@@ -19,7 +19,9 @@ required_packages <- c(
   "officer",          # For Word document generation
   "flextable",         # For formatted tables in Word
   "r3dmol",
-  "bio3d"
+  "bio3d",
+  'httr2',
+  'markdown'
 )
 
 # Function to check and install packages

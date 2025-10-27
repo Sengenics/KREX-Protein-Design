@@ -11,7 +11,8 @@ cran_packages <- c(
   "httr",
   "jsonlite",
   "DT",
-  "readr"
+  "readr",
+  'httr2'
 )
 
 # Install missing CRAN packages
